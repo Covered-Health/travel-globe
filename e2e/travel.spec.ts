@@ -9,16 +9,17 @@ test('traveler adds a location and views it on the timeline', async ({ page }) =
   await page.route('**/api/locations**', async route => {
     if (route.request().method() === 'POST') {
       locations = [{ id: '1', name: 'Lisbon', latitude: 38.7, longitude: -9.1,
-        timezone: 'Europe/Lisbon', startDate: '2026-09-03', endDate: null,
+        timezone: 'Europe/Lisbon', startDate: '2020-09-03', endDate: '2020-09-05',
         story: 'Pastéis by the river', photos: [], embedPhotos: false }]
       await route.fulfill({ status: 201, json: locations[0] })
-    } else await route.fulfill({ json: locations })
+    } else await route.fulfill({ json: route.request().url().includes('scope=all') ? locations : [] })
   })
   await page.goto('/')
   await page.getByRole('button', { name: 'Add location' }).click()
   await page.getByRole('combobox', { name: 'Location' }).fill('Lis')
   await page.getByRole('option', { name: 'Lisbon, Portugal' }).click()
-  await page.getByLabel('From').fill('2026-09-03')
+  await page.getByLabel('From').fill('2020-09-03')
+  await page.getByLabel('Until (optional)').fill('2020-09-05')
   await page.getByRole('textbox', { name: 'editable markdown' }).fill('Pastéis by the river')
   await page.getByRole('button', { name: 'Save location' }).click()
 

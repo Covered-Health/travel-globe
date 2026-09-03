@@ -163,11 +163,13 @@ function TravelPage({ user }: { user: User }) {
       setError(body.detail ?? 'Could not save location')
       return
     }
+    const created = await response.json()
     form.reset()
     setPlace(null)
     setStory('')
     setAdding(false)
-    await load()
+    if (isCurrent(created)) await load()
+    else setScope('all')
   }
 
   return <>
