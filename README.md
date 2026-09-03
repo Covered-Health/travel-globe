@@ -9,6 +9,10 @@ returning travelers use the same email and password.
 
 Requirements: Python 3.14, uv, Node, pnpm, and MongoDB.
 
+Create a browser API key in [MapTiler Cloud](https://cloud.maptiler.com/),
+copy `.env.example` to `.env.local`, and set `VITE_MAPTILER_KEY`. This enables
+the labeled Satellite Hybrid globe; without it, the app uses unlabeled imagery.
+
 ```sh
 docker compose up -d mongo
 uv sync
