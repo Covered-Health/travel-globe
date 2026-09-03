@@ -77,3 +77,18 @@ def test_current_scope_excludes_past_locations():
 
     assert [item["name"] for item in response.json()] == ["Home"]
     app.dependency_overrides.clear()
+
+
+def test_photo_larger_than_ten_megabytes_is_rejected():
+    collection = MemoryCollection()
+    app.dependency_overrides[get_collection] = lambda: collection
+
+    response = TestClient(app).post(
+        "/api/locations",
+        data={"name": "Lisbon", "latitude": "38.7", "longitude": "-9.1",
+              "timezone": "Europe/Lisbon", "start_date": "2026-09-03"},
+        files={"photos": ("large.jpg", b"x" * (10 * 1024 * 1024 + 1), "image/jpeg")},
+    )
+
+    assert response.status_code == 422
+    app.dependency_overrides.clear()

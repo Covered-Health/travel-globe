@@ -61,12 +61,19 @@ async def create_location(
     except ZoneInfoNotFoundError:
         raise HTTPException(422, "Unknown timezone") from None
 
-    photo_urls = []
+    pending_photos = []
     for photo in photos:
         if not photo.content_type or not photo.content_type.startswith("image/"):
             raise HTTPException(422, "Photos must be images")
+        content = await photo.read(10 * 1024 * 1024 + 1)
+        if len(content) > 10 * 1024 * 1024:
+            raise HTTPException(422, "Each photo must be 10 MB or smaller")
         filename = f"{uuid4().hex}{Path(photo.filename or '').suffix.lower()}"
-        (UPLOADS / filename).write_bytes(await photo.read())
+        pending_photos.append((filename, content))
+
+    photo_urls = []
+    for filename, content in pending_photos:
+        (UPLOADS / filename).write_bytes(content)
         photo_urls.append(f"/uploads/{filename}")
 
     document = {

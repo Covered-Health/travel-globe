@@ -36,6 +36,11 @@ function LocationCard({ location, current }: { location: Location; current: bool
   </Card>
 }
 
+function isCurrent(location: Location) {
+  const today = new Date().toISOString().slice(0, 10)
+  return location.startDate <= today && (!location.endDate || location.endDate >= today)
+}
+
 function TravelPage() {
   const [locations, setLocations] = useState<Location[]>([])
   const [scope, setScope] = useState<'current' | 'all'>('current')
@@ -96,7 +101,7 @@ function TravelPage() {
         <Box className="globe" aria-label="Travel globe">{locations.map(location =>
           <IconButton key={location.id} aria-label={`${location.name} location`} title={location.name} className="marker" sx={{ left: `${(location.longitude + 180) / 3.6}%`, top: `${(90 - location.latitude) / 1.8}%` }}>●</IconButton>
         )}</Box> : null}
-      <Stack className={view === 'timeline' ? 'timeline' : 'cards'}>{locations.map(location => <LocationCard key={location.id} location={location} current={scope === 'current'} />)}</Stack>
+      <Stack className={view === 'timeline' ? 'timeline' : 'cards'}>{locations.map(location => <LocationCard key={location.id} location={location} current={isCurrent(location)} />)}</Stack>
     </Container>
   </>
 }
