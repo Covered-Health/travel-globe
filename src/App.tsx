@@ -198,7 +198,7 @@ function TravelPage({ user }: { user: User }) {
       if (!response.ok) throw new Error((await response.json()).detail ?? 'Could not save location')
       const created: Location = await response.json()
       form.reset(); setPlace(null); setStory(''); setAdding(false); setNotice(`${created.name} was added to your atlas`)
-      if (isCurrent(created)) await load(); else setScope('all')
+      if (!isCurrent(created) && scope !== 'all') setScope('all'); else await load()
     } catch (error) { setError((error as Error).message) } finally { setSaving(false) }
   }
 

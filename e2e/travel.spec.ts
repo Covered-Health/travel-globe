@@ -15,6 +15,7 @@ test('traveler adds a location and views it on the timeline', async ({ page }) =
     } else await route.fulfill({ json: route.request().url().includes('scope=all') ? locations : [] })
   })
   await page.goto('/')
+  await page.getByRole('switch', { name: 'Include history' }).click()
   await page.getByRole('button', { name: 'Add location' }).click()
   await page.getByRole('combobox', { name: 'Location' }).fill('Lis')
   await page.getByRole('option', { name: 'Lisbon, Portugal' }).click()
