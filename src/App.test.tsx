@@ -4,6 +4,11 @@ import { afterEach, expect, test, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
 import App from './App'
 
+vi.mock('react-globe.gl', async () => {
+  const React = await import('react')
+  return { default: React.forwardRef(() => <canvas />) }
+})
+
 afterEach(() => { cleanup(); vi.restoreAllMocks() })
 
 test('landing page is useful while session restoration is pending', () => {

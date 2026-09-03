@@ -21,8 +21,9 @@ test('traveler adds a location and views it on the timeline', async ({ page }) =
   await page.getByLabel('From').fill('2020-09-03')
   await page.getByLabel('Until (optional)').fill('2020-09-05')
   await page.getByRole('textbox', { name: 'editable markdown' }).fill('Pastéis by the river')
-  await page.getByRole('button', { name: 'Save location' }).click()
+  await page.getByRole('button', { name: 'Save to atlas' }).click()
 
+  await expect(page.locator('[aria-label="Interactive world globe"] canvas')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Lisbon location' })).toBeVisible()
   await page.getByRole('button', { name: /Timeline/ }).click()
   await expect(page.getByText('Pastéis by the river')).toBeVisible()
