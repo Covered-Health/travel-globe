@@ -2,7 +2,7 @@
   "scripts": {
     "dev": {
       "type": "script",
-      "command": "task dev"
+      "command": "set -euo pipefail\npaseo script start backend\npaseo script start frontend"
     },
     "frontend": {
       "type": "service",
