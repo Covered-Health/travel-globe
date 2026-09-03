@@ -1,0 +1,17 @@
+version: '3'
+
+output: interleaved
+
+tasks:
+  dev:
+    cmds:
+      - paseo script start backend
+      - paseo script start frontend
+
+  frontend:
+    cmds:
+      - VITE_BACKEND_URL=http://127.0.0.1:$PASEO_SERVICE_BACKEND_PORT pnpm dev --host 127.0.0.1 --port $PASEO_PORT
+
+  backend:
+    cmds:
+      - WEB_ORIGIN=$PASEO_SERVICE_FRONTEND_URL uv run uvicorn backend.app:app --host 127.0.0.1 --port $PASEO_PORT --reload
