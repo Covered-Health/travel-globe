@@ -1,6 +1,6 @@
 import { AddLocationAlt, Public, Timeline } from '@mui/icons-material'
 import {
-  Alert, AppBar, Box, Button, Card, CardContent, Chip, Container, CssBaseline,
+  Alert, AppBar, Autocomplete, Box, Button, Card, CardContent, Chip, Container, CssBaseline,
   FormControlLabel, Grid, IconButton, Paper, Stack, Switch, TextField, ToggleButton,
   ToggleButtonGroup, Toolbar, Typography,
 } from '@mui/material'
@@ -14,6 +14,46 @@ type Location = {
 }
 
 type User = { email: string }
+type Place = { id: number; name: string; admin1?: string; country?: string; latitude: number; longitude: number; timezone: string }
+
+function placeLabel(place: Place) {
+  return [place.name, place.admin1 !== place.name && place.admin1, place.country].filter(Boolean).join(', ')
+}
+
+function PlaceSearch({ value, onChange }: { value: Place | null; onChange: (place: Place | null) => void }) {
+  const [query, setQuery] = useState('')
+  const [options, setOptions] = useState<Place[]>([])
+  const [loading, setLoading] = useState(false)
+  useEffect(() => {
+    if (query.trim().length < 3) { setOptions([]); return }
+    const controller = new AbortController()
+    const timer = setTimeout(async () => {
+      setLoading(true)
+      try {
+        const response = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=6&language=en&format=json`, { signal: controller.signal })
+        setOptions((await response.json()).results ?? [])
+      } catch (error) {
+        if ((error as Error).name !== 'AbortError') setOptions([])
+      } finally { setLoading(false) }
+    }, 250)
+    return () => { clearTimeout(timer); controller.abort() }
+  }, [query])
+
+  return <>
+    <Autocomplete
+      value={value} options={options} loading={loading} filterOptions={items => items}
+      getOptionLabel={placeLabel} isOptionEqualToValue={(a, b) => a.id === b.id}
+      onChange={(_, place) => onChange(place)} onInputChange={(_, text) => setQuery(text)}
+      renderInput={params => <TextField {...params} label="Location" required />}
+    />
+    {value && <>
+      <input type="hidden" name="name" value={value.name} />
+      <input type="hidden" name="latitude" value={value.latitude} />
+      <input type="hidden" name="longitude" value={value.longitude} />
+      <input type="hidden" name="timezone" value={value.timezone} />
+    </>}
+  </>
+}
 
 function Landing({ onLogin }: { onLogin: (user: User) => void }) {
   const [error, setError] = useState('')
@@ -86,6 +126,7 @@ function TravelPage({ user }: { user: User }) {
   const [view, setView] = useState<'globe' | 'timeline'>('globe')
   const [adding, setAdding] = useState(false)
   const [error, setError] = useState('')
+  const [place, setPlace] = useState<Place | null>(null)
 
   const load = () => fetch(`/api/locations?scope=${scope}`).then(async response => {
     if (!response.ok) throw new Error('Could not load locations')
@@ -96,6 +137,7 @@ function TravelPage({ user }: { user: User }) {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const form = event.currentTarget
+    if (!place) { setError('Choose a location from the suggestions'); return }
     setError('')
     const response = await fetch('/api/locations', { method: 'POST', body: new FormData(form) })
     if (!response.ok) {
@@ -104,6 +146,7 @@ function TravelPage({ user }: { user: User }) {
       return
     }
     form.reset()
+    setPlace(null)
     setAdding(false)
     await load()
   }
@@ -120,10 +163,7 @@ function TravelPage({ user }: { user: User }) {
       {adding && <Paper component="form" onSubmit={submit} className="form">
         <Typography variant="h6">Where have you landed?</Typography>
         <Grid container spacing={2}>
-          <Grid size={{ xs: 12, sm: 6 }}><TextField name="name" label="Location" required fullWidth /></Grid>
-          <Grid size={{ xs: 6, sm: 3 }}><TextField name="latitude" label="Latitude" type="number" slotProps={{ htmlInput: { step: 'any', min: -90, max: 90 } }} required fullWidth /></Grid>
-          <Grid size={{ xs: 6, sm: 3 }}><TextField name="longitude" label="Longitude" type="number" slotProps={{ htmlInput: { step: 'any', min: -180, max: 180 } }} required fullWidth /></Grid>
-          <Grid size={{ xs: 12, sm: 4 }}><TextField name="timezone" label="Timezone" placeholder="Europe/Lisbon" required fullWidth /></Grid>
+          <Grid size={12}><PlaceSearch value={place} onChange={setPlace} /><Typography variant="caption" color="text.secondary">Place search by Open-Meteo</Typography></Grid>
           <Grid size={{ xs: 6, sm: 4 }}><TextField name="start_date" label="From" type="date" slotProps={{ inputLabel: { shrink: true } }} required fullWidth /></Grid>
           <Grid size={{ xs: 6, sm: 4 }}><TextField name="end_date" label="Until (optional)" type="date" slotProps={{ inputLabel: { shrink: true } }} fullWidth /></Grid>
           <Grid size={12}><TextField name="note" label="Story or note" multiline rows={3} fullWidth /></Grid>
