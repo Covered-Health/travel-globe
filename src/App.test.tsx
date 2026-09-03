@@ -41,7 +41,7 @@ test('signed-out landing globe presents example journeys', async () => {
   render(<MemoryRouter><App /></MemoryRouter>)
   expect(await screen.findByText('A glimpse of the journeys ahead')).toBeVisible()
   expect(screen.getByRole('button', { name: 'Continue' })).toBeVisible()
-  expect(screen.getByText(/MapTiler key to show geographic labels/)).toBeVisible()
+  expect(screen.getByText(/MapTiler key to show geographic labels|© MapTiler/)).toBeVisible()
 })
 
 test('atlas shows every traveler without exposing full field notes', async () => {

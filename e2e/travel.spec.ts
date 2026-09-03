@@ -1,5 +1,15 @@
 import { expect, test } from '@playwright/test'
 
+test('landing globe uses the full canvas below the heading bar', async ({ page }) => {
+  await page.route('**/api/session', route => route.fulfill({ status: 401, json: { detail: 'Not signed in' } }))
+  await page.goto('/')
+
+  const globe = await page.getByLabel('Interactive world globe').boundingBox()
+  const viewport = page.viewportSize()!
+  expect(globe?.width).toBeGreaterThan(viewport.width * .95)
+  expect(globe?.height).toBeGreaterThan(viewport.height - 100)
+})
+
 test('traveler adds a location and returns to the routed atlas', async ({ page }) => {
   let location: object | undefined
   await page.route('**/api/session', route => route.fulfill({ json: { email: 'traveler@example.com' } }))

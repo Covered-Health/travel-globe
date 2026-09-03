@@ -8,7 +8,9 @@ import { FormEvent, lazy, Suspense, useEffect, useMemo, useRef, useState } from 
 import type { GlobeMethods } from 'react-globe.gl'
 import Markdown from 'react-markdown'
 import { Link, Route, Routes, useNavigate, useParams, useSearchParams } from 'react-router'
-import { journeyLegs } from './journeys'
+import { CanvasTexture, CatmullRomCurve3, Mesh, MeshBasicMaterial, SRGBColorSpace, TubeGeometry, Vector3 } from 'three'
+import { globeRoutePoints, journeyLegs } from './journeys'
+import { placeName } from './places'
 import './style.css'
 
 type Traveler = { id: string; email: string }
@@ -17,9 +19,8 @@ type Location = {
   startDate: string; endDate: string | null; story: string; photos: string[]; embedPhotos: boolean; traveler: Traveler
 }
 type User = { email: string }
-type Place = { id: number; name: string; admin1?: string; country?: string; latitude: number; longitude: number; timezone: string }
+type Place = { id: number; name: string; admin1?: string; country?: string; country_code?: string; latitude: number; longitude: number; timezone: string }
 type Arc = { startLat: number; startLng: number; endLat: number; endLng: number; color: string }
-type Chevron = { color: string; points: { lat: number; lng: number; alt: number }[] }
 type TravelerDetails = Traveler & { locations: Omit<Location, 'traveler'>[] }
 
 const Globe = lazy(() => import('react-globe.gl'))
@@ -35,10 +36,6 @@ const exampleLocations: Location[] = [
 
 function travelerColor(id: string) {
   return colors[[...id].reduce((total, letter) => total + letter.charCodeAt(0), 0) % colors.length]
-}
-
-function placeLabel(place: Place) {
-  return [place.name, place.admin1 !== place.name && place.admin1, place.country].filter(Boolean).join(', ')
 }
 
 function PlaceSearch({ value, onChange }: { value: Place | null; onChange: (place: Place | null) => void }) {
@@ -59,10 +56,10 @@ function PlaceSearch({ value, onChange }: { value: Place | null; onChange: (plac
     return () => { clearTimeout(timer); controller.abort() }
   }, [query])
   return <>
-    <Autocomplete value={value} options={options} loading={loading} filterOptions={items => items} getOptionLabel={placeLabel}
+    <Autocomplete value={value} options={options} loading={loading} filterOptions={items => items} getOptionLabel={placeName}
       isOptionEqualToValue={(a, b) => a.id === b.id} onChange={(_, selected) => onChange(selected)} onInputChange={(_, text) => setQuery(text)}
       renderInput={params => <TextField {...params} label="Location" placeholder="Search city or place" required helperText="Coordinates and timezone are added automatically" />} />
-    {value && <><input type="hidden" name="name" value={value.name} /><input type="hidden" name="latitude" value={value.latitude} /><input type="hidden" name="longitude" value={value.longitude} /><input type="hidden" name="timezone" value={value.timezone} /></>}
+    {value && <><input type="hidden" name="name" value={placeName(value)} /><input type="hidden" name="latitude" value={value.latitude} /><input type="hidden" name="longitude" value={value.longitude} /><input type="hidden" name="timezone" value={value.timezone} /></>}
   </>
 }
 
@@ -70,50 +67,58 @@ function journeyArcs(locations: Location[]) {
   return journeyLegs(locations).map(({ from, to }): Arc => ({ startLat: from.latitude, startLng: from.longitude, endLat: to.latitude, endLng: to.longitude, color: travelerColor(to.traveler.id) }))
 }
 
-function routeChevrons(arcs: Arc[]): Chevron[] {
-  return arcs.flatMap(arc => [.36, .64].flatMap(t => {
-    const longitude = ((arc.endLng - arc.startLng + 540) % 360) - 180
-    const point = (at: number) => ({ lat: arc.startLat + (arc.endLat - arc.startLat) * at, lng: arc.startLng + longitude * at, alt: .16 * Math.sin(Math.PI * at) })
-    const tip = point(t)
-    const base = point(t - .035)
-    const dy = tip.lat - base.lat
-    const dx = tip.lng - base.lng
-    const length = Math.hypot(dx, dy) || 1
-    const wing = { lat: dx / length * .55, lng: -dy / length * .55 }
-    return [
-      { color: arc.color, points: [{ ...base, lat: base.lat + wing.lat, lng: base.lng + wing.lng }, tip] },
-      { color: arc.color, points: [{ ...base, lat: base.lat - wing.lat, lng: base.lng - wing.lng }, tip] },
-    ]
-  }))
+function routeMesh(arc: Arc) {
+  const canvas = document.createElement('canvas')
+  canvas.width = 256; canvas.height = 16
+  const context = canvas.getContext('2d')!
+  const gradient = context.createLinearGradient(0, 0, canvas.width, 0)
+  gradient.addColorStop(0, '#24403b'); gradient.addColorStop(1, arc.color)
+  context.fillStyle = gradient; context.fillRect(0, 0, canvas.width, canvas.height)
+  context.strokeStyle = '#f5ead0aa'; context.lineWidth = 1.4
+  for (let x = 42; x < canvas.width - 10; x += 52) {
+    context.beginPath(); context.moveTo(x - 5, 4); context.lineTo(x, 8); context.lineTo(x - 5, 12); context.stroke()
+  }
+  const texture = new CanvasTexture(canvas); texture.colorSpace = SRGBColorSpace
+  const points = globeRoutePoints(
+    { latitude: arc.startLat, longitude: arc.startLng },
+    { latitude: arc.endLat, longitude: arc.endLng },
+  ).map(({ lat, lng, alt }) => {
+    const radius = 100 * (1 + alt)
+    const phi = (90 - lat) * Math.PI / 180
+    const theta = (90 - lng) * Math.PI / 180
+    return new Vector3(radius * Math.sin(phi) * Math.cos(theta), radius * Math.cos(phi), radius * Math.sin(phi) * Math.sin(theta))
+  })
+  return new Mesh(new TubeGeometry(new CatmullRomCurve3(points), 64, .32, 6), new MeshBasicMaterial({ map: texture }))
 }
 
-function WorldGlobe({ locations, compact = false }: { locations: Location[]; compact?: boolean }) {
+function WorldGlobe({ locations, immersive = false }: { locations: Location[]; immersive?: boolean }) {
   const host = useRef<HTMLDivElement>(null)
   const globe = useRef<GlobeMethods>()
   const navigate = useNavigate()
-  const [size, setSize] = useState(560)
+  const [dimensions, setDimensions] = useState({ width: 560, height: 560 })
   const arcs = useMemo(() => journeyArcs(locations), [locations])
-  const chevrons = useMemo(() => routeChevrons(arcs), [arcs])
   useEffect(() => {
     if (!host.current) return
-    const observer = new ResizeObserver(([entry]) => setSize(Math.round(Math.min(entry.contentRect.width, compact ? 520 : 680))))
+    const observer = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect
+      const size = Math.min(width, 680)
+      setDimensions(immersive ? { width: Math.round(width), height: Math.round(height) } : { width: Math.round(size), height: Math.round(size) })
+    })
     observer.observe(host.current); return () => observer.disconnect()
-  }, [compact])
+  }, [immersive])
   function ready() {
     if (!globe.current) return
     globe.current.controls().autoRotate = !locations.length
     globe.current.controls().autoRotateSpeed = .3
     globe.current.controls().enablePan = false
     const latest = locations[0]
-    globe.current.pointOfView(latest ? { lat: latest.latitude, lng: latest.longitude, altitude: 1.9 } : { lat: 18, lng: 12, altitude: 2.2 }, 900)
+    globe.current.pointOfView(latest ? { lat: latest.latitude, lng: latest.longitude, altitude: immersive ? 3.2 : 1.9 } : { lat: 18, lng: 12, altitude: immersive ? 3.2 : 2.2 }, 900)
   }
-  return <Box ref={host} className={`world-globe ${compact ? 'compact' : ''}`} aria-label="Interactive world globe">
-    <Suspense fallback={<Skeleton variant="circular" width={size} height={size} animation="wave" />}>
-      <Globe ref={globe} width={size} height={size} backgroundColor="rgba(0,0,0,0)" bumpImageUrl="/earth-topology.png" globeImageUrl={maptilerKey ? undefined : '/earth-blue-marble.jpg'} globeTileEngineUrl={maptilerKey ? (x, y, level) => `https://api.maptiler.com/maps/hybrid-v4/256/${level}/${x}/${y}.jpg?key=${maptilerKey}` : undefined}
-        showAtmosphere atmosphereColor="#81d8d0" atmosphereAltitude={0.16} labelsData={locations} labelLat="latitude" labelLng="longitude" labelText="name" labelColor={item => travelerColor((item as Location).traveler.id)} labelAltitude={0.025} labelSize={compact ? 0.65 : 0.75} labelDotRadius={0.3} labelIncludeDot labelDotOrientation="bottom" labelsTransitionDuration={0} onLabelClick={item => { const location = item as Location; if (!location.id.startsWith('example-')) navigate(`/locations/${location.id}`) }}
-        arcsData={arcs} arcStartLat="startLat" arcStartLng="startLng" arcEndLat="endLat" arcEndLng="endLng" arcColor={arc => [`${(arc as Arc).color}33`, (arc as Arc).color]}
-        arcStroke={0.65} arcAltitude={0.16} arcDashLength={1} arcDashGap={0} arcsTransitionDuration={0}
-        pathsData={chevrons} pathPoints="points" pathPointLat="lat" pathPointLng="lng" pathPointAlt="alt" pathColor="color" pathStroke={0.5} pathResolution={1} pathTransitionDuration={0} showGraticules onGlobeReady={ready} />
+  return <Box ref={host} className={`world-globe ${immersive ? 'immersive' : ''}`} aria-label="Interactive world globe">
+    <Suspense fallback={<Skeleton variant="circular" width={dimensions.height} height={dimensions.height} animation="wave" />}>
+      <Globe ref={globe} width={dimensions.width} height={dimensions.height} globeOffset={immersive ? [dimensions.width * .24, 0] : [0, 0]} backgroundColor="rgba(0,0,0,0)" bumpImageUrl="/earth-topology.png" globeImageUrl={maptilerKey ? undefined : '/earth-blue-marble.jpg'} globeTileEngineUrl={maptilerKey ? (x, y, level) => `https://api.maptiler.com/maps/hybrid-v4/256/${level}/${x}/${y}.jpg?key=${maptilerKey}` : undefined}
+        showAtmosphere atmosphereColor="#81d8d0" atmosphereAltitude={0.16} labelsData={locations} labelLat="latitude" labelLng="longitude" labelText="name" labelColor={item => travelerColor((item as Location).traveler.id)} labelAltitude={0.001} labelSize={immersive ? 0.65 : 0.75} labelDotRadius={0.3} labelIncludeDot labelDotOrientation="bottom" labelsTransitionDuration={0} onLabelClick={item => { const location = item as Location; if (!location.id.startsWith('example-')) navigate(`/locations/${location.id}`) }}
+        customLayerData={arcs} customThreeObject={routeMesh} showGraticules onGlobeReady={ready} />
     </Suspense>
     <Typography className="globe-hint" variant="caption">Drag to explore · Scroll to zoom</Typography>
     {maptilerKey ? <a className="map-attribution" href="https://www.maptiler.com/copyright/" target="_blank" rel="noreferrer">© MapTiler © OpenStreetMap contributors</a> : <Typography className="map-attribution" variant="caption">Add a MapTiler key to show geographic labels</Typography>}
@@ -139,7 +144,7 @@ function Landing({ onLogin }: { onLogin: (user: User) => void }) {
   return <main className="landing">
     <header className="brand"><Public /><span>Travel Globe</span></header>
     <section className="landing-copy"><Typography className="eyebrow">A living atlas of everywhere you’ve been</Typography><Typography component="h1" aria-label="Every journey has a place">Every journey<br />has a place.</Typography><Typography className="lead">Build a private, visual archive of the cities, stories, photographs, and moments that shaped your world.</Typography><Stack direction="row" className="feature-line"><span>01</span><p>Pin every stay</p><span>02</span><p>Keep the story</p><span>03</span><p>Watch your world grow</p></Stack></section>
-    <aside className="landing-globe"><WorldGlobe locations={exampleLocations} compact /><Typography className="example-caption">A glimpse of the journeys ahead</Typography></aside>
+    <aside className="landing-globe"><WorldGlobe locations={exampleLocations} immersive /><Typography className="example-caption">A glimpse of the journeys ahead</Typography></aside>
     <Box component="form" onSubmit={login} className="login-form"><Typography className="eyebrow">Your private atlas</Typography><Typography component="h2">Step inside</Typography><TextField name="email" type="email" label="Email address" autoComplete="email" required fullWidth /><TextField name="password" type="password" label="Password" autoComplete="current-password" slotProps={{ htmlInput: { minLength: 8 } }} required fullWidth /><Button type="submit" variant="contained" size="large" endIcon={<ArrowForward />} disabled={submitting}>{submitting ? 'Opening your atlas…' : 'Continue'}</Button><Typography variant="caption">New here? Your private space is created on first sign-in.</Typography></Box>
     <Snackbar open={!!error} message={error} onClose={() => setError('')} autoHideDuration={6000} />
   </main>

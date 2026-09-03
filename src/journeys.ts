@@ -6,6 +6,25 @@ export type JourneyLocation = {
 }
 
 export type JourneyLeg<T extends JourneyLocation> = { from: T; to: T }
+type Coordinates = { latitude: number; longitude: number }
+export type GlobePoint = { lat: number; lng: number; alt: number }
+
+export function globeRoutePoints(from: Coordinates, to: Coordinates): GlobePoint[] {
+  const vector = ({ latitude, longitude }: Coordinates) => {
+    const lat = latitude * Math.PI / 180
+    const lng = longitude * Math.PI / 180
+    return [Math.cos(lat) * Math.cos(lng), Math.sin(lat), -Math.cos(lat) * Math.sin(lng)]
+  }
+  const a = vector(from)
+  const b = vector(to)
+  const angle = Math.acos(Math.min(1, Math.max(-1, a.reduce((sum, value, index) => sum + value * b[index], 0))))
+  return Array.from({ length: 65 }, (_, index) => {
+    const t = index / 64
+    const scale = Math.sin(angle) ? [Math.sin((1 - t) * angle) / Math.sin(angle), Math.sin(t * angle) / Math.sin(angle)] : [1 - t, t]
+    const [x, y, z] = a.map((value, axis) => value * scale[0] + b[axis] * scale[1])
+    return { lat: Math.atan2(y, Math.hypot(x, z)) * 180 / Math.PI, lng: Math.atan2(-z, x) * 180 / Math.PI, alt: .075 * Math.sin(Math.PI * t) }
+  })
+}
 
 export function journeyLegs<T extends JourneyLocation>(locations: T[]): JourneyLeg<T>[] {
   const byTraveler = new Map<string, T[]>()

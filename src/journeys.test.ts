@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { journeyLegs } from './journeys'
+import { globeRoutePoints, journeyLegs } from './journeys'
 
 test('a contained trip returns to its parent before the next destination', () => {
   const traveler = { id: 'one' }
@@ -23,4 +23,12 @@ test('journeys never connect different travelers', () => {
   ]
 
   expect(journeyLegs(locations)).toEqual([])
+})
+
+test('globe routes touch the surface and stay below the reduced elevation', () => {
+  const points = globeRoutePoints({ latitude: 47.6, longitude: -122.2 }, { latitude: 19.4, longitude: -99.1 })
+
+  expect(points[0].alt).toBe(0)
+  expect(points.at(-1)?.alt).toBeCloseTo(0)
+  expect(Math.max(...points.map(point => point.alt))).toBeLessThanOrEqual(0.075)
 })
