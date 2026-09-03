@@ -1,0 +1,18 @@
+[project]
+name = "travel-globe"
+version = "0.1.0"
+requires-python = ">=3.14"
+dependencies = [
+  "fastapi>=0.116",
+  "pymongo>=4.14",
+  "python-multipart>=0.0.20",
+  "uvicorn[standard]>=0.35",
+]
+
+[dependency-groups]
+dev = ["httpx>=0.28", "pytest>=8.4", "pytest-asyncio>=1.1"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+pythonpath = ["."]
+testpaths = ["backend/tests"]
