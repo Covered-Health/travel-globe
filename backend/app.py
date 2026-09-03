@@ -81,6 +81,10 @@ async def read_session(user=Depends(get_current_user)):
     return {"email": user["email"]}
 
 
+def iso_date(value):
+    return value if isinstance(value, str) else value.isoformat() if value else None
+
+
 def location_json(document):
     return {
         "id": str(document["_id"]),
@@ -88,8 +92,8 @@ def location_json(document):
         "latitude": document["latitude"],
         "longitude": document["longitude"],
         "timezone": document["timezone"],
-        "startDate": document["start_date"].isoformat(),
-        "endDate": document["end_date"].isoformat() if document["end_date"] else None,
+        "startDate": iso_date(document["start_date"]),
+        "endDate": iso_date(document["end_date"]),
         "story": document.get("story", document.get("note", "")),
         "photos": document["photos"],
         "embedPhotos": document.get("embed_photos", False),
@@ -142,8 +146,8 @@ async def create_location(
         "latitude": latitude,
         "longitude": longitude,
         "timezone": timezone,
-        "start_date": start_date,
-        "end_date": end_date,
+        "start_date": start_date.isoformat(),
+        "end_date": end_date.isoformat() if end_date else None,
         "story": story,
         "photos": photo_urls,
         "embed_photos": embed_photos,
@@ -158,9 +162,10 @@ async def list_locations(scope: str = "current", collection=Depends(get_collecti
         raise HTTPException(422, "Scope must be current or all")
     documents = await collection.find({"user_id": user["_id"]}).sort("start_date", DESCENDING).to_list()
     if scope == "current":
-        today = date.today()
+        today = date.today().isoformat()
         documents = [
             item for item in documents
-            if item["start_date"] <= today and (item["end_date"] is None or item["end_date"] >= today)
+            if iso_date(item["start_date"]) <= today
+            and (item["end_date"] is None or iso_date(item["end_date"]) >= today)
         ]
     return [location_json(item) for item in documents]

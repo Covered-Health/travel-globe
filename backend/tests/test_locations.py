@@ -48,6 +48,8 @@ def test_created_location_is_retrievable():
     locations = client.get("/api/locations?scope=all")
 
     assert created.status_code == 201
+    assert collection.documents[0]["start_date"] == "2026-09-03"
+    assert collection.documents[0]["end_date"] is None
     assert locations.json() == [{
         "id": "location-1",
         "name": "Lisbon",
