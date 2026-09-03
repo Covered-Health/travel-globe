@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from bson import ObjectId
 from pymongo import AsyncMongoClient, DESCENDING
 from pydantic import BaseModel, EmailStr, Field
 
@@ -100,6 +101,25 @@ def location_json(document):
     }
 
 
+def in_scope(document, scope):
+    today = date.today().isoformat()
+    return scope == "all" or (
+        iso_date(document["start_date"]) <= today
+        and (document["end_date"] is None or iso_date(document["end_date"]) >= today)
+    )
+
+
+def database_id(value):
+    return ObjectId(value) if ObjectId.is_valid(value) else value
+
+
+async def shared_location(document, users):
+    owner = await users.find_one({"_id": document["user_id"]})
+    item = location_json(document)
+    item["traveler"] = {"id": str(owner["_id"]), "email": owner["email"]}
+    return item
+
+
 @app.post("/api/locations", status_code=201)
 async def create_location(
     name: str = Form(min_length=1, max_length=120),
@@ -161,11 +181,35 @@ async def list_locations(scope: str = "current", collection=Depends(get_collecti
     if scope not in {"current", "all"}:
         raise HTTPException(422, "Scope must be current or all")
     documents = await collection.find({"user_id": user["_id"]}).sort("start_date", DESCENDING).to_list()
-    if scope == "current":
-        today = date.today().isoformat()
-        documents = [
-            item for item in documents
-            if iso_date(item["start_date"]) <= today
-            and (item["end_date"] is None or iso_date(item["end_date"]) >= today)
-        ]
+    documents = [item for item in documents if in_scope(item, scope)]
     return [location_json(item) for item in documents]
+
+
+@app.get("/api/atlas")
+async def read_atlas(scope: str = "current", collection=Depends(get_collection), users=Depends(get_users), _user=Depends(get_current_user)):
+    if scope not in {"current", "all"}:
+        raise HTTPException(422, "Scope must be current or all")
+    documents = await collection.find({}).sort("start_date", DESCENDING).to_list()
+    result = []
+    for document in documents:
+        if not in_scope(document, scope):
+            continue
+        result.append(await shared_location(document, users))
+    return result
+
+
+@app.get("/api/users/{user_id}")
+async def read_user(user_id: str, collection=Depends(get_collection), users=Depends(get_users), _user=Depends(get_current_user)):
+    owner = await users.find_one({"_id": database_id(user_id)})
+    if not owner:
+        raise HTTPException(404, "Traveler not found")
+    documents = await collection.find({"user_id": owner["_id"]}).sort("start_date", DESCENDING).to_list()
+    return {"id": str(owner["_id"]), "email": owner["email"], "locations": [location_json(item) for item in documents]}
+
+
+@app.get("/api/locations/{location_id}")
+async def read_location(location_id: str, collection=Depends(get_collection), users=Depends(get_users), _user=Depends(get_current_user)):
+    document = await collection.find_one({"_id": database_id(location_id)})
+    if not document:
+        raise HTTPException(404, "Location not found")
+    return await shared_location(document, users)
