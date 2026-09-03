@@ -2,7 +2,7 @@ from datetime import date
 
 from fastapi.testclient import TestClient
 
-from backend.app import app, get_collection
+from backend.app import app, get_collection, get_current_user
 
 
 class MemoryCollection:
@@ -31,6 +31,7 @@ class MemoryCursor:
 def test_created_location_is_retrievable():
     collection = MemoryCollection()
     app.dependency_overrides[get_collection] = lambda: collection
+    app.dependency_overrides[get_current_user] = lambda: {"_id": "user-1"}
     client = TestClient(app)
 
     created = client.post(
@@ -72,6 +73,7 @@ def test_current_scope_excludes_past_locations():
          "end_date": None, "note": "", "photos": []},
     ]
     app.dependency_overrides[get_collection] = lambda: collection
+    app.dependency_overrides[get_current_user] = lambda: {"_id": "user-1"}
 
     response = TestClient(app).get("/api/locations?scope=current")
 
@@ -82,6 +84,7 @@ def test_current_scope_excludes_past_locations():
 def test_photo_larger_than_ten_megabytes_is_rejected():
     collection = MemoryCollection()
     app.dependency_overrides[get_collection] = lambda: collection
+    app.dependency_overrides[get_current_user] = lambda: {"_id": "user-1"}
 
     response = TestClient(app).post(
         "/api/locations",

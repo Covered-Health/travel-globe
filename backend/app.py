@@ -7,7 +7,7 @@ from pathlib import Path
 from uuid import uuid4
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from fastapi import Depends, FastAPI, File, Form, HTTPException, Response, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pymongo import AsyncMongoClient, DESCENDING
@@ -69,6 +69,13 @@ async def create_session(credentials: Credentials, response: Response, users=Dep
     return {"email": email}
 
 
+async def get_current_user(request: Request, users=Depends(get_users)):
+    token = request.cookies.get("session")
+    if not token or not (user := await users.find_one({"session_hash": hashlib.sha256(token.encode()).hexdigest()})):
+        raise HTTPException(401, "Login required")
+    return user
+
+
 def location_json(document):
     return {
         "id": str(document["_id"]),
@@ -94,6 +101,7 @@ async def create_location(
     note: str = Form("", max_length=5000),
     photos: list[UploadFile] = File(default=[]),
     collection=Depends(get_collection),
+    user=Depends(get_current_user),
 ):
     if end_date and end_date < start_date:
         raise HTTPException(422, "End date must not precede start date")
@@ -118,6 +126,7 @@ async def create_location(
         photo_urls.append(f"/uploads/{filename}")
 
     document = {
+        "user_id": user["_id"],
         "name": name,
         "latitude": latitude,
         "longitude": longitude,
@@ -132,10 +141,10 @@ async def create_location(
 
 
 @app.get("/api/locations")
-async def list_locations(scope: str = "current", collection=Depends(get_collection)):
+async def list_locations(scope: str = "current", collection=Depends(get_collection), user=Depends(get_current_user)):
     if scope not in {"current", "all"}:
         raise HTTPException(422, "Scope must be current or all")
-    documents = await collection.find({}).sort("start_date", DESCENDING).to_list()
+    documents = await collection.find({"user_id": user["_id"]}).sort("start_date", DESCENDING).to_list()
     if scope == "current":
         today = date.today()
         documents = [

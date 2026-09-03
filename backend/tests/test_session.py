@@ -4,7 +4,8 @@ from backend.app import app, get_users
 
 
 class InsertResult:
-    inserted_id = "user-1"
+    def __init__(self, inserted_id):
+        self.inserted_id = inserted_id
 
 
 class MemoryUsers:
@@ -12,9 +13,9 @@ class MemoryUsers:
         self.documents = []
 
     async def insert_one(self, document):
-        document["_id"] = "user-1"
+        document["_id"] = f"user-{len(self.documents) + 1}"
         self.documents.append(document)
-        return InsertResult()
+        return InsertResult(document["_id"])
 
     async def find_one(self, query):
         return next((item for item in self.documents if all(item.get(key) == value for key, value in query.items())), None)
