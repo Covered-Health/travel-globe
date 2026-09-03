@@ -1,0 +1,12 @@
+:root { font-family: Inter, system-ui, sans-serif; color: #e8f3ff; background: #071523; color-scheme: dark; }
+body { margin: 0; min-width: 320px; min-height: 100vh; background: radial-gradient(circle at 70% 0%, #173d58 0, #071523 48%); }
+.MuiPaper-root, .MuiCard-root { background-image: none !important; }
+.form { padding: 24px; margin-top: 16px; display: grid; gap: 20px; }
+.globe { position: relative; width: min(72vw, 650px); aspect-ratio: 1; margin: 20px auto 36px; border-radius: 50%; overflow: hidden; background: radial-gradient(circle at 35% 25%, #49a4bf, #12617d 42%, #082b46 70%); box-shadow: inset -45px -20px 70px #03111dcc, 0 25px 80px #0009; }
+.globe::before { content: ''; position: absolute; inset: 12%; border: 2px solid #a6e4dc35; border-radius: 50%; transform: scaleX(1.8); }
+.marker { position: absolute !important; transform: translate(-50%, -50%); color: #ffcc66 !important; text-shadow: 0 0 12px #ff9d00; z-index: 1; }
+.cards { display: grid !important; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; padding-bottom: 40px; }
+.timeline { gap: 16px; border-left: 2px solid #45b3bd; margin-left: 16px; padding: 0 0 40px 24px; }
+.location-card { overflow: hidden; }
+.location-card img { width: 100%; height: 180px; object-fit: cover; }
+@media (max-width: 600px) { .globe { width: 88vw; } .form { padding: 16px; } }

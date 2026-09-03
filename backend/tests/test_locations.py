@@ -59,3 +59,21 @@ def test_created_location_is_retrievable():
         "photos": [],
     }]
     app.dependency_overrides.clear()
+
+
+def test_current_scope_excludes_past_locations():
+    collection = MemoryCollection()
+    collection.documents = [
+        {"_id": "past", "name": "Rome", "latitude": 41.9, "longitude": 12.5,
+         "timezone": "Europe/Rome", "start_date": date(2020, 1, 1),
+         "end_date": date(2020, 1, 5), "note": "", "photos": []},
+        {"_id": "current", "name": "Home", "latitude": 32.1, "longitude": 34.8,
+         "timezone": "Asia/Jerusalem", "start_date": date.today(),
+         "end_date": None, "note": "", "photos": []},
+    ]
+    app.dependency_overrides[get_collection] = lambda: collection
+
+    response = TestClient(app).get("/api/locations?scope=current")
+
+    assert [item["name"] for item in response.json()] == ["Home"]
+    app.dependency_overrides.clear()
