@@ -1,20 +1,22 @@
 import { AddLocationAlt, Public, Timeline } from '@mui/icons-material'
 import {
-  Alert, AppBar, Autocomplete, Box, Button, Card, CardContent, Chip, Container, CssBaseline,
-  FormControlLabel, Grid, IconButton, Paper, Stack, Switch, TextField, ToggleButton,
-  ToggleButtonGroup, Toolbar, Typography,
+  Alert, AppBar, Autocomplete, Box, Button, Card, CardContent, Chip, Container, CssBaseline, Dialog, DialogContent, DialogTitle,
+  Checkbox, FormControlLabel, Grid, IconButton, Paper, Stack, Switch, TextField, ToggleButton,
+  ToggleButtonGroup, Toolbar, Typography, createTheme, ThemeProvider,
 } from '@mui/material'
-import { FormEvent, useEffect, useState } from 'react'
+import { FormEvent, lazy, Suspense, useEffect, useState } from 'react'
+import Markdown from 'react-markdown'
 import { Route, Routes } from 'react-router'
 import './style.css'
 
 type Location = {
   id: string; name: string; latitude: number; longitude: number; timezone: string
-  startDate: string; endDate: string | null; note: string; photos: string[]
+  startDate: string; endDate: string | null; story: string; photos: string[]; embedPhotos: boolean
 }
 
 type User = { email: string }
 type Place = { id: number; name: string; admin1?: string; country?: string; latitude: number; longitude: number; timezone: string }
+const StoryEditor = lazy(() => import('./StoryEditor'))
 
 function placeLabel(place: Place) {
   return [place.name, place.admin1 !== place.name && place.admin1, place.country].filter(Boolean).join(', ')
@@ -102,16 +104,31 @@ function Clock({ timezone }: { timezone: string }) {
 }
 
 function LocationCard({ location, current }: { location: Location; current: boolean }) {
+  const [galleryOpen, setGalleryOpen] = useState(false)
   return <Card className="location-card">
-    {location.photos[0] && <img src={location.photos[0]} alt={`${location.name} attachment`} />}
     <CardContent>
       <Stack direction="row" gap={1} sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
         <Typography variant="h6">{location.name}</Typography>
         {current && <Clock timezone={location.timezone} />}
       </Stack>
       <Typography color="text.secondary">{location.startDate}{location.endDate && ` – ${location.endDate}`}</Typography>
-      {location.note && <Typography mt={1}>{location.note}</Typography>}
+      {location.story && <Box className="story"><Markdown>{location.story}</Markdown></Box>}
+      {location.embedPhotos && !!location.photos.length && <button type="button" aria-label={`Open ${location.name} photo gallery`} onClick={() => setGalleryOpen(true)} className={`inline-photos count-${Math.min(location.photos.length, 3)}`}>
+        {location.photos.slice(0, location.photos.length >= 3 ? 3 : 2).map((photo, index) => <img key={photo} src={photo} alt={`${location.name} inline photo ${index + 1}`} />)}
+      </button>}
+      {!!location.photos.length && <Box className="photo-gallery">
+        <Typography variant="subtitle2">Photos</Typography>
+        <Box className="gallery-strip">{location.photos.map((photo, index) =>
+          <button type="button" key={photo} onClick={() => setGalleryOpen(true)}><img src={photo} alt={`${location.name} gallery photo ${index + 1}`} /></button>
+        )}</Box>
+      </Box>}
     </CardContent>
+    <Dialog open={galleryOpen} onClose={() => setGalleryOpen(false)} maxWidth="md" fullWidth aria-labelledby={`gallery-${location.id}`}>
+      <DialogTitle id={`gallery-${location.id}`}>{location.name} photo gallery</DialogTitle>
+      <DialogContent className="gallery-dialog">{location.photos.map((photo, index) =>
+        <img key={photo} src={photo} alt={`${location.name} full photo ${index + 1}`} />
+      )}</DialogContent>
+    </Dialog>
   </Card>
 }
 
@@ -127,6 +144,7 @@ function TravelPage({ user }: { user: User }) {
   const [adding, setAdding] = useState(false)
   const [error, setError] = useState('')
   const [place, setPlace] = useState<Place | null>(null)
+  const [story, setStory] = useState('')
 
   const load = () => fetch(`/api/locations?scope=${scope}`).then(async response => {
     if (!response.ok) throw new Error('Could not load locations')
@@ -147,6 +165,7 @@ function TravelPage({ user }: { user: User }) {
     }
     form.reset()
     setPlace(null)
+    setStory('')
     setAdding(false)
     await load()
   }
@@ -163,11 +182,14 @@ function TravelPage({ user }: { user: User }) {
       {adding && <Paper component="form" onSubmit={submit} className="form">
         <Typography variant="h6">Where have you landed?</Typography>
         <Grid container spacing={2}>
-          <Grid size={12}><PlaceSearch value={place} onChange={setPlace} /><Typography variant="caption" color="text.secondary">Place search by Open-Meteo</Typography></Grid>
+          <Grid size={12}><PlaceSearch value={place} onChange={setPlace} /><Typography variant="caption" color="text.secondary">Place search by <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo</a></Typography></Grid>
           <Grid size={{ xs: 6, sm: 4 }}><TextField name="start_date" label="From" type="date" slotProps={{ inputLabel: { shrink: true } }} required fullWidth /></Grid>
           <Grid size={{ xs: 6, sm: 4 }}><TextField name="end_date" label="Until (optional)" type="date" slotProps={{ inputLabel: { shrink: true } }} fullWidth /></Grid>
-          <Grid size={12}><TextField name="note" label="Story or note" multiline rows={3} fullWidth /></Grid>
-          <Grid size={12}><Button component="label">Attach photos<input hidden name="photos" type="file" accept="image/*" multiple /></Button></Grid>
+          <Grid size={12}><Suspense fallback={<Typography>Loading editor…</Typography>}><StoryEditor onChange={setStory} /></Suspense><input type="hidden" name="story" value={story} /></Grid>
+          <Grid size={12}><Stack direction={{ xs: 'column', sm: 'row' }} sx={{ alignItems: { sm: 'center' } }}>
+            <Button component="label">Attach photos<input hidden name="photos" type="file" accept="image/*" multiple /></Button>
+            <FormControlLabel control={<Checkbox name="embed_photos" value="true" />} label="Embed photos in story" />
+          </Stack></Grid>
         </Grid>
         <Button type="submit" variant="contained">Save location</Button>
       </Paper>}
@@ -196,6 +218,5 @@ export default function App() {
   useEffect(() => {
     fetch('/api/session').then(response => response.ok ? response.json() : null).then(setUser).catch(() => setUser(null))
   }, [])
-  if (user === undefined) return <Box className="app-loading"><Public /></Box>
-  return <><CssBaseline /><Routes><Route path="*" element={user ? <TravelPage user={user} /> : <Landing onLogin={setUser} />} /></Routes></>
+  return <ThemeProvider theme={createTheme({ palette: { mode: 'dark', primary: { main: '#58c7c7' }, secondary: { main: '#ffcc66' } } })}><CssBaseline /><Routes><Route path="*" element={user ? <TravelPage user={user} /> : <Landing onLogin={setUser} />} /></Routes></ThemeProvider>
 }

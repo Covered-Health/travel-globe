@@ -2,22 +2,24 @@ import { expect, test } from '@playwright/test'
 
 test('traveler adds a location and views it on the timeline', async ({ page }) => {
   let locations: object[] = []
+  await page.route('**/api/session', route => route.fulfill({ json: { email: 'traveler@example.com' } }))
+  await page.route('https://geocoding-api.open-meteo.com/**', route => route.fulfill({ json: { results: [{
+    id: 1, name: 'Lisbon', country: 'Portugal', latitude: 38.7, longitude: -9.1, timezone: 'Europe/Lisbon',
+  }] } }))
   await page.route('**/api/locations**', async route => {
     if (route.request().method() === 'POST') {
       locations = [{ id: '1', name: 'Lisbon', latitude: 38.7, longitude: -9.1,
         timezone: 'Europe/Lisbon', startDate: '2026-09-03', endDate: null,
-        note: 'Pastéis by the river', photos: [] }]
+        story: 'Pastéis by the river', photos: [], embedPhotos: false }]
       await route.fulfill({ status: 201, json: locations[0] })
     } else await route.fulfill({ json: locations })
   })
   await page.goto('/')
   await page.getByRole('button', { name: 'Add location' }).click()
-  await page.getByLabel('Location').fill('Lisbon')
-  await page.getByLabel('Latitude').fill('38.7')
-  await page.getByLabel('Longitude').fill('-9.1')
-  await page.getByLabel('Timezone').fill('Europe/Lisbon')
+  await page.getByRole('combobox', { name: 'Location' }).fill('Lis')
+  await page.getByRole('option', { name: 'Lisbon, Portugal' }).click()
   await page.getByLabel('From').fill('2026-09-03')
-  await page.getByLabel('Story or note').fill('Pastéis by the river')
+  await page.getByRole('textbox', { name: 'editable markdown' }).fill('Pastéis by the river')
   await page.getByRole('button', { name: 'Save location' }).click()
 
   await expect(page.getByRole('button', { name: 'Lisbon location' })).toBeVisible()

@@ -1,7 +1,9 @@
 # Travel Globe
 
-Travel locations with dates, notes, photo attachments, current-location clocks,
-history filtering, a globe, and a timeline.
+Private traveler spaces with place autocomplete, dated locations, Markdown
+stories, inline photo compositions and galleries, current-location clocks,
+history filtering, a globe, and a timeline. A new email creates a traveler;
+returning travelers use the same email and password.
 
 ## Run
 
