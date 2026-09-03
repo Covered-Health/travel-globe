@@ -119,7 +119,7 @@ async def create_location(
 
     pending_photos = []
     for photo in photos:
-        if isinstance(photo, str) and not photo:
+        if (isinstance(photo, str) and not photo) or (not isinstance(photo, str) and not photo.filename):
             continue
         if isinstance(photo, str):
             raise HTTPException(422, "Photos must be images")

@@ -115,6 +115,35 @@ def test_empty_browser_file_placeholder_is_treated_as_no_photo():
     app.dependency_overrides.clear()
 
 
+def test_gecko_empty_upload_is_treated_as_no_photo():
+    collection = MemoryCollection()
+    app.dependency_overrides[get_collection] = lambda: collection
+    app.dependency_overrides[get_current_user] = lambda: {"_id": "user-1"}
+    boundary = "geckoformboundary"
+    fields = {
+        "name": "Bellevue", "latitude": "47.61038", "longitude": "-122.20068",
+        "timezone": "America/Los_Angeles", "start_date": "2026-08-13",
+    }
+    parts = [
+        f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n{value}\r\n'
+        for name, value in fields.items()
+    ]
+    parts.append(
+        f'--{boundary}\r\nContent-Disposition: form-data; name="photos"; filename=""\r\n'
+        'Content-Type: application/octet-stream\r\n\r\n\r\n'
+    )
+    parts.append(f'--{boundary}--\r\n')
+
+    response = TestClient(app).post(
+        "/api/locations", content="".join(parts).encode(),
+        headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["photos"] == []
+    app.dependency_overrides.clear()
+
+
 def test_story_markdown_and_photo_layout_choice_are_preserved():
     collection = MemoryCollection()
     app.dependency_overrides[get_collection] = lambda: collection
