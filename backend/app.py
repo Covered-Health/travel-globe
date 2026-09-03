@@ -90,8 +90,9 @@ def location_json(document):
         "timezone": document["timezone"],
         "startDate": document["start_date"].isoformat(),
         "endDate": document["end_date"].isoformat() if document["end_date"] else None,
-        "note": document["note"],
+        "story": document.get("story", document.get("note", "")),
         "photos": document["photos"],
+        "embedPhotos": document.get("embed_photos", False),
     }
 
 
@@ -103,7 +104,8 @@ async def create_location(
     timezone: str = Form(),
     start_date: date = Form(),
     end_date: date | None = Form(None),
-    note: str = Form("", max_length=5000),
+    story: str = Form("", max_length=20_000),
+    embed_photos: bool = Form(False),
     photos: list[UploadFile] = File(default=[]),
     collection=Depends(get_collection),
     user=Depends(get_current_user),
@@ -138,8 +140,9 @@ async def create_location(
         "timezone": timezone,
         "start_date": start_date,
         "end_date": end_date,
-        "note": note,
+        "story": story,
         "photos": photo_urls,
+        "embed_photos": embed_photos,
     }
     await collection.insert_one(document)
     return location_json(document)
