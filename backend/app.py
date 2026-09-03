@@ -106,7 +106,7 @@ async def create_location(
     end_date: date | None = Form(None),
     story: str = Form("", max_length=20_000),
     embed_photos: bool = Form(False),
-    photos: list[UploadFile] = File(default=[]),
+    photos: list[UploadFile | str] = File(default=[]),
     collection=Depends(get_collection),
     user=Depends(get_current_user),
 ):
@@ -119,6 +119,10 @@ async def create_location(
 
     pending_photos = []
     for photo in photos:
+        if isinstance(photo, str) and not photo:
+            continue
+        if isinstance(photo, str):
+            raise HTTPException(422, "Photos must be images")
         if not photo.content_type or not photo.content_type.startswith("image/"):
             raise HTTPException(422, "Photos must be images")
         content = await photo.read(10 * 1024 * 1024 + 1)

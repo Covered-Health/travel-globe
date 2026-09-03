@@ -98,6 +98,23 @@ def test_photo_larger_than_ten_megabytes_is_rejected():
     app.dependency_overrides.clear()
 
 
+def test_empty_browser_file_placeholder_is_treated_as_no_photo():
+    collection = MemoryCollection()
+    app.dependency_overrides[get_collection] = lambda: collection
+    app.dependency_overrides[get_current_user] = lambda: {"_id": "user-1"}
+
+    response = TestClient(app).post(
+        "/api/locations",
+        data={"name": "Lisbon", "latitude": "38.7", "longitude": "-9.1",
+              "timezone": "Europe/Lisbon", "start_date": "2026-09-03"},
+        files={"photos": ("", b"", "application/octet-stream")},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["photos"] == []
+    app.dependency_overrides.clear()
+
+
 def test_story_markdown_and_photo_layout_choice_are_preserved():
     collection = MemoryCollection()
     app.dependency_overrides[get_collection] = lambda: collection
