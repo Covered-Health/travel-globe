@@ -1,13 +1,17 @@
+import hashlib
+import hmac
 import os
+import secrets
 from datetime import date
 from pathlib import Path
 from uuid import uuid4
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pymongo import AsyncMongoClient, DESCENDING
+from pydantic import BaseModel, EmailStr, Field
 
 UPLOADS = Path("uploads")
 UPLOADS.mkdir(exist_ok=True)
@@ -18,6 +22,10 @@ def get_collection():
     return mongo[os.getenv("MONGODB_DATABASE", "travel_globe")].locations
 
 
+def get_users():
+    return mongo[os.getenv("MONGODB_DATABASE", "travel_globe")].users
+
+
 app = FastAPI(title="Travel Globe")
 app.add_middleware(
     CORSMiddleware,
@@ -26,6 +34,39 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.mount("/uploads", StaticFiles(directory=UPLOADS), name="uploads")
+
+
+class Credentials(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=200)
+
+
+def hash_password(password: str) -> str:
+    salt = secrets.token_bytes(16)
+    digest = hashlib.scrypt(password.encode(), salt=salt, n=2**14, r=8, p=1)
+    return f"{salt.hex()}:{digest.hex()}"
+
+
+def password_matches(password: str, encoded: str) -> bool:
+    salt, expected = encoded.split(":", 1)
+    actual = hashlib.scrypt(password.encode(), salt=bytes.fromhex(salt), n=2**14, r=8, p=1)
+    return hmac.compare_digest(actual.hex(), expected)
+
+
+@app.post("/api/session")
+async def create_session(credentials: Credentials, response: Response, users=Depends(get_users)):
+    email = str(credentials.email).lower()
+    user = await users.find_one({"email": email})
+    if user and not password_matches(credentials.password, user["password_hash"]):
+        raise HTTPException(401, "Incorrect password")
+    token = secrets.token_urlsafe(32)
+    session_hash = hashlib.sha256(token.encode()).hexdigest()
+    if user:
+        await users.update_one({"_id": user["_id"]}, {"$set": {"session_hash": session_hash}})
+    else:
+        await users.insert_one({"email": email, "password_hash": hash_password(credentials.password), "session_hash": session_hash})
+    response.set_cookie("session", token, httponly=True, samesite="lax", max_age=30 * 24 * 60 * 60)
+    return {"email": email}
 
 
 def location_json(document):
