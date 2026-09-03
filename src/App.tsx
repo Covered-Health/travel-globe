@@ -9,7 +9,7 @@ import type { GlobeMethods } from 'react-globe.gl'
 import Markdown from 'react-markdown'
 import { Link, Route, Routes, useNavigate, useParams, useSearchParams } from 'react-router'
 import { CanvasTexture, CatmullRomCurve3, Mesh, MeshBasicMaterial, SRGBColorSpace, TubeGeometry, Vector3 } from 'three'
-import { globeRoutePoints, journeyLegs } from './journeys'
+import { globeRoutePoints, journeyLegs, overlayScale } from './journeys'
 import { placeName } from './places'
 import './style.css'
 
@@ -21,6 +21,7 @@ type Location = {
 type User = { email: string }
 type Place = { id: number; name: string; admin1?: string; country?: string; country_code?: string; latitude: number; longitude: number; timezone: string }
 type Arc = { startLat: number; startLng: number; endLat: number; endLng: number; color: string }
+type Route = Arc & { scale: number }
 type TravelerDetails = Traveler & { locations: Omit<Location, 'traveler'>[] }
 
 const Globe = lazy(() => import('react-globe.gl'))
@@ -67,7 +68,7 @@ function journeyArcs(locations: Location[]) {
   return journeyLegs(locations).map(({ from, to }): Arc => ({ startLat: from.latitude, startLng: from.longitude, endLat: to.latitude, endLng: to.longitude, color: travelerColor(to.traveler.id) }))
 }
 
-function routeMesh(arc: Arc) {
+function routeMesh(arc: Route) {
   const canvas = document.createElement('canvas')
   canvas.width = 256; canvas.height = 16
   const context = canvas.getContext('2d')!
@@ -75,8 +76,8 @@ function routeMesh(arc: Arc) {
   gradient.addColorStop(0, '#24403b'); gradient.addColorStop(1, arc.color)
   context.fillStyle = gradient; context.fillRect(0, 0, canvas.width, canvas.height)
   context.strokeStyle = '#f5ead0aa'; context.lineWidth = 1.4
-  for (let x = 42; x < canvas.width - 10; x += 52) {
-    context.beginPath(); context.moveTo(x - 5, 4); context.lineTo(x, 8); context.lineTo(x - 5, 12); context.stroke()
+  for (let x = 42 * arc.scale; x < canvas.width - 5 * arc.scale; x += 52 * arc.scale) {
+    context.beginPath(); context.moveTo(x - 5 * arc.scale, 4); context.lineTo(x, 8); context.lineTo(x - 5 * arc.scale, 12); context.stroke()
   }
   const texture = new CanvasTexture(canvas); texture.colorSpace = SRGBColorSpace
   const points = globeRoutePoints(
@@ -88,7 +89,7 @@ function routeMesh(arc: Arc) {
     const theta = (90 - lng) * Math.PI / 180
     return new Vector3(radius * Math.sin(phi) * Math.cos(theta), radius * Math.cos(phi), radius * Math.sin(phi) * Math.sin(theta))
   })
-  return new Mesh(new TubeGeometry(new CatmullRomCurve3(points), 64, .32, 6), new MeshBasicMaterial({ map: texture }))
+  return new Mesh(new TubeGeometry(new CatmullRomCurve3(points), 64, .32 * arc.scale, 6), new MeshBasicMaterial({ map: texture }))
 }
 
 function WorldGlobe({ locations, immersive = false }: { locations: Location[]; immersive?: boolean }) {
@@ -96,7 +97,10 @@ function WorldGlobe({ locations, immersive = false }: { locations: Location[]; i
   const globe = useRef<GlobeMethods>()
   const navigate = useNavigate()
   const [dimensions, setDimensions] = useState({ width: 560, height: 560 })
+  const [scale, setScale] = useState(1)
+  const baseAltitude = immersive ? 3.2 : locations.length ? 1.9 : 2.2
   const arcs = useMemo(() => journeyArcs(locations), [locations])
+  const routes = useMemo(() => arcs.map(arc => ({ ...arc, scale })), [arcs, scale])
   useEffect(() => {
     if (!host.current) return
     const observer = new ResizeObserver(([entry]) => {
@@ -108,17 +112,18 @@ function WorldGlobe({ locations, immersive = false }: { locations: Location[]; i
   }, [immersive])
   function ready() {
     if (!globe.current) return
-    globe.current.controls().autoRotate = !locations.length
-    globe.current.controls().autoRotateSpeed = .3
-    globe.current.controls().enablePan = false
+    const controls = globe.current.controls()
+    controls.autoRotate = !locations.length
+    controls.autoRotateSpeed = .3
+    controls.enablePan = false
     const latest = locations[0]
-    globe.current.pointOfView(latest ? { lat: latest.latitude, lng: latest.longitude, altitude: immersive ? 3.2 : 1.9 } : { lat: 18, lng: 12, altitude: immersive ? 3.2 : 2.2 }, 900)
+    globe.current.pointOfView(latest ? { lat: latest.latitude, lng: latest.longitude, altitude: baseAltitude } : { lat: 18, lng: 12, altitude: baseAltitude }, 900)
   }
   return <Box ref={host} className={`world-globe ${immersive ? 'immersive' : ''}`} aria-label="Interactive world globe">
     <Suspense fallback={<Skeleton variant="circular" width={dimensions.height} height={dimensions.height} animation="wave" />}>
       <Globe ref={globe} width={dimensions.width} height={dimensions.height} globeOffset={immersive ? [dimensions.width * .24, 0] : [0, 0]} backgroundColor="rgba(0,0,0,0)" bumpImageUrl="/earth-topology.png" globeImageUrl={maptilerKey ? undefined : '/earth-blue-marble.jpg'} globeTileEngineUrl={maptilerKey ? (x, y, level) => `https://api.maptiler.com/maps/hybrid-v4/256/${level}/${x}/${y}.jpg?key=${maptilerKey}` : undefined}
-        showAtmosphere atmosphereColor="#81d8d0" atmosphereAltitude={0.16} labelsData={locations} labelLat="latitude" labelLng="longitude" labelText="name" labelColor={item => travelerColor((item as Location).traveler.id)} labelAltitude={0.001} labelSize={immersive ? 0.65 : 0.75} labelDotRadius={0.3} labelIncludeDot labelDotOrientation="bottom" labelsTransitionDuration={0} onLabelClick={item => { const location = item as Location; if (!location.id.startsWith('example-')) navigate(`/locations/${location.id}`) }}
-        customLayerData={arcs} customThreeObject={routeMesh} showGraticules onGlobeReady={ready} />
+        showAtmosphere atmosphereColor="#81d8d0" atmosphereAltitude={0.16} labelsData={locations} labelLat="latitude" labelLng="longitude" labelText="name" labelColor={item => travelerColor((item as Location).traveler.id)} labelAltitude={0.001} labelSize={(immersive ? 0.65 : 0.75) * scale} labelDotRadius={0.3 * scale} labelIncludeDot labelDotOrientation="bottom" labelsTransitionDuration={0} onLabelClick={item => { const location = item as Location; if (!location.id.startsWith('example-')) navigate(`/locations/${location.id}`) }}
+        customLayerData={routes} customThreeObject={routeMesh} showGraticules onGlobeReady={ready} onZoom={({ altitude }) => setScale(overlayScale(baseAltitude, altitude))} />
     </Suspense>
     <Typography className="globe-hint" variant="caption">Drag to explore · Scroll to zoom</Typography>
     {maptilerKey ? <a className="map-attribution" href="https://www.maptiler.com/copyright/" target="_blank" rel="noreferrer">© MapTiler © OpenStreetMap contributors</a> : <Typography className="map-attribution" variant="caption">Add a MapTiler key to show geographic labels</Typography>}

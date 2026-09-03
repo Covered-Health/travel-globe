@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { globeRoutePoints, journeyLegs } from './journeys'
+import { globeRoutePoints, journeyLegs, overlayScale } from './journeys'
 
 test('a contained trip returns to its parent before the next destination', () => {
   const traveler = { id: 'one' }
@@ -31,4 +31,12 @@ test('globe routes touch the surface and stay below the reduced elevation', () =
   expect(points[0].alt).toBe(0)
   expect(points.at(-1)?.alt).toBeCloseTo(0)
   expect(Math.max(...points.map(point => point.alt))).toBeLessThanOrEqual(0.075)
+})
+
+test('overlay world size shrinks as the camera zooms toward the globe', () => {
+  expect(overlayScale(2, 1)).toBe(.5)
+})
+
+test('overlay scaling remains proportional at street-level zoom', () => {
+  expect(overlayScale(3.2, .1)).toBe(.03)
 })

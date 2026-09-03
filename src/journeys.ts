@@ -9,6 +9,10 @@ export type JourneyLeg<T extends JourneyLocation> = { from: T; to: T }
 type Coordinates = { latitude: number; longitude: number }
 export type GlobePoint = { lat: number; lng: number; alt: number }
 
+export function overlayScale(baseAltitude: number, altitude: number) {
+  return Math.min(2, Math.max(.01, Math.round(altitude / baseAltitude * 100) / 100))
+}
+
 export function globeRoutePoints(from: Coordinates, to: Coordinates): GlobePoint[] {
   const vector = ({ latitude, longitude }: Coordinates) => {
     const lat = latitude * Math.PI / 180
