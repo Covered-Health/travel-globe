@@ -13,6 +13,45 @@ type Location = {
   startDate: string; endDate: string | null; note: string; photos: string[]
 }
 
+type User = { email: string }
+
+function Landing({ onLogin }: { onLogin: (user: User) => void }) {
+  const [error, setError] = useState('')
+
+  async function login(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const form = event.currentTarget
+    const data = new FormData(form)
+    const response = await fetch('/api/session', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: data.get('email'), password: data.get('password') }),
+    })
+    if (!response.ok) {
+      const body = await response.json()
+      setError(body.detail ?? 'Could not continue')
+      return
+    }
+    onLogin(await response.json())
+  }
+
+  return <main className="landing">
+    <section className="landing-copy">
+      <Chip label="Your world, remembered" color="primary" />
+      <Typography component="h1" variant="h2">Every journey has a place</Typography>
+      <Typography variant="h6" color="text.secondary">Pin where you are, preserve the story, and watch your travels unfold across the globe.</Typography>
+      <Paper component="form" onSubmit={login} className="login-form">
+        <Typography variant="h6">Continue to your globe</Typography>
+        <TextField name="email" type="email" label="Email" autoComplete="email" required fullWidth />
+        <TextField name="password" type="password" label="Password" autoComplete="current-password" slotProps={{ htmlInput: { minLength: 8 } }} required fullWidth />
+        {error && <Alert severity="error">{error}</Alert>}
+        <Button type="submit" variant="contained" size="large">Continue</Button>
+        <Typography variant="caption" color="text.secondary">New email? We’ll create your private travel space.</Typography>
+      </Paper>
+    </section>
+    <Box className="hero-globe" aria-label="Illustrated world globe"><i /><i /><i /></Box>
+  </main>
+}
+
 function Clock({ timezone }: { timezone: string }) {
   const [now, setNow] = useState(new Date())
   useEffect(() => {
@@ -41,7 +80,7 @@ function isCurrent(location: Location) {
   return location.startDate <= today && (!location.endDate || location.endDate >= today)
 }
 
-function TravelPage() {
+function TravelPage({ user }: { user: User }) {
   const [locations, setLocations] = useState<Location[]>([])
   const [scope, setScope] = useState<'current' | 'all'>('current')
   const [view, setView] = useState<'globe' | 'timeline'>('globe')
@@ -72,6 +111,7 @@ function TravelPage() {
   return <>
     <AppBar position="static" color="transparent" elevation={0}>
       <Toolbar><Public sx={{ mr: 1 }} /><Typography variant="h5" sx={{ flexGrow: 1 }}>Travel Globe</Typography>
+        <Typography color="text.secondary" sx={{ mr: 2, display: { xs: 'none', sm: 'block' } }}>{user.email}</Typography>
         <Button startIcon={<AddLocationAlt />} variant="contained" onClick={() => setAdding(!adding)}>Add location</Button>
       </Toolbar>
     </AppBar>
@@ -97,7 +137,12 @@ function TravelPage() {
           <ToggleButton value="globe"><Public /> Globe</ToggleButton><ToggleButton value="timeline"><Timeline /> Timeline</ToggleButton>
         </ToggleButtonGroup>
       </Stack>
-      {!locations.length ? <Typography sx={{ textAlign: 'center', py: 10 }}>No locations here yet.</Typography> : view === 'globe' ?
+      {!locations.length ? <Paper className="empty-journey">
+        <Box className="mini-globe">✦</Box>
+        <Typography variant="h4">Start your map</Typography>
+        <Typography color="text.secondary">Add the place you are now or begin with a favorite trip.</Typography>
+        <Button variant="contained" onClick={() => setAdding(true)}>Pin your first place</Button>
+      </Paper> : view === 'globe' ?
         <Box className="globe" aria-label="Travel globe">{locations.map(location =>
           <IconButton key={location.id} aria-label={`${location.name} location`} title={location.name} className="marker" sx={{ left: `${(location.longitude + 180) / 3.6}%`, top: `${(90 - location.latitude) / 1.8}%` }}>●</IconButton>
         )}</Box> : null}
@@ -107,5 +152,10 @@ function TravelPage() {
 }
 
 export default function App() {
-  return <Routes><Route path="*" element={<TravelPage />} /></Routes>
+  const [user, setUser] = useState<User | null>()
+  useEffect(() => {
+    fetch('/api/session').then(response => response.ok ? response.json() : null).then(setUser).catch(() => setUser(null))
+  }, [])
+  if (user === undefined) return <Box className="app-loading"><Public /></Box>
+  return <><CssBaseline /><Routes><Route path="*" element={user ? <TravelPage user={user} /> : <Landing onLogin={setUser} />} /></Routes></>
 }

@@ -76,6 +76,11 @@ async def get_current_user(request: Request, users=Depends(get_users)):
     return user
 
 
+@app.get("/api/session")
+async def read_session(user=Depends(get_current_user)):
+    return {"email": user["email"]}
+
+
 def location_json(document):
     return {
         "id": str(document["_id"]),

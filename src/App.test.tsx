@@ -5,12 +5,24 @@ import App from './App'
 
 afterEach(() => vi.restoreAllMocks())
 
+test('signed-out travelers see an inviting landing page', async () => {
+  vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 401 }))
+
+  render(<MemoryRouter><App /></MemoryRouter>)
+
+  expect(await screen.findByRole('heading', { name: 'Every journey has a place' })).toBeVisible()
+  expect(screen.getByRole('button', { name: 'Continue' })).toBeVisible()
+})
+
 test('shows fetched travel locations on the globe', async () => {
-  vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify([{
+  const locations = [{
     id: 'location-1', name: 'Lisbon', latitude: 38.7, longitude: -9.1,
     timezone: 'Europe/Lisbon', startDate: '2026-09-03', endDate: null,
     note: 'Pastéis by the river', photos: [],
-  }]), { headers: { 'Content-Type': 'application/json' } }))
+  }]
+  vi.spyOn(globalThis, 'fetch').mockImplementation(async input => new Response(JSON.stringify(
+    String(input).endsWith('/api/session') ? { email: 'traveler@example.com' } : locations
+  ), { headers: { 'Content-Type': 'application/json' } }))
 
   render(<MemoryRouter><App /></MemoryRouter>)
 

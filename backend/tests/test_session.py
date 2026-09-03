@@ -51,3 +51,15 @@ def test_returning_user_with_wrong_password_is_rejected():
 
     assert response.status_code == 401
     app.dependency_overrides.clear()
+
+
+def test_session_cookie_restores_logged_in_user():
+    users = MemoryUsers()
+    app.dependency_overrides[get_users] = lambda: users
+    client = TestClient(app)
+    client.post("/api/session", json={"email": "traveler@example.com", "password": "right-password"})
+
+    response = client.get("/api/session")
+
+    assert response.json() == {"email": "traveler@example.com"}
+    app.dependency_overrides.clear()
