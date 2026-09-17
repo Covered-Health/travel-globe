@@ -1,5 +1,17 @@
 import { expect, test } from '@playwright/test'
 
+test('signed-in header keeps sign out accessible on a narrow screen', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 740 })
+  await page.route('**/api/session', route => route.fulfill({ json: { email: 'traveler@example.com' } }))
+  await page.route('**/api/atlas**', route => route.fulfill({ json: [] }))
+  await page.goto('/')
+
+  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible()
+  const signOut = await page.getByRole('button', { name: 'Sign out' }).boundingBox()
+  expect(signOut!.x + signOut!.width).toBeLessThanOrEqual(320)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320)
+})
+
 test('landing globe uses the full canvas below the heading bar', async ({ page }) => {
   await page.route('**/api/session', route => route.fulfill({ status: 401, json: { detail: 'Not signed in' } }))
   await page.goto('/')

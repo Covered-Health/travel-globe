@@ -1,10 +1,10 @@
-import { AddLocationAlt, ArrowBack, ArrowForward, Close, Public, Timeline } from '@mui/icons-material'
+import { AddLocationAlt, ArrowBack, ArrowForward, Close, Logout, Public, Timeline } from '@mui/icons-material'
 import {
-  Autocomplete, Box, Button, Checkbox, Chip, Container, CssBaseline, Dialog, DialogContent, DialogTitle,
+  Autocomplete, Box, Button, Checkbox, Chip, CircularProgress, Container, CssBaseline, Dialog, DialogContent, DialogTitle,
   FormControlLabel, Grid, IconButton, Skeleton, Snackbar, Stack, Switch, TextField, ToggleButton,
   ToggleButtonGroup, Toolbar, Tooltip, Typography, createTheme, ThemeProvider,
 } from '@mui/material'
-import { FormEvent, lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { createContext, FormEvent, lazy, Suspense, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { GlobeMethods } from 'react-globe.gl'
 import Markdown from 'react-markdown'
 import { Link, Route, Routes, useNavigate, useParams, useSearchParams } from 'react-router'
@@ -26,6 +26,7 @@ type TravelerDetails = Traveler & { locations: Omit<Location, 'traveler'>[] }
 
 const Globe = lazy(() => import('react-globe.gl'))
 const StoryEditor = lazy(() => import('./StoryEditor'))
+const SignOutContext = createContext<() => void>(() => {})
 const maptilerKey = import.meta.env.VITE_MAPTILER_KEY
 const colors = ['#f0b95c', '#66c7bb', '#ef8275', '#a98de5', '#79a9f2', '#d88eb7', '#9ac76b']
 const exampleLocations: Location[] = [
@@ -131,7 +132,20 @@ function WorldGlobe({ locations, immersive = false }: { locations: Location[]; i
 }
 
 function Header() {
-  return <Toolbar component="header" className="app-header"><Link className="brand" to="/?view=globe&scope=all"><Public /><span>Travel Globe</span></Link><Button component={Link} to="/locations/new" startIcon={<AddLocationAlt />} variant="contained">Add location</Button></Toolbar>
+  const navigate = useNavigate()
+  const onSignOut = useContext(SignOutContext)
+  const [signingOut, setSigningOut] = useState(false)
+  const [error, setError] = useState('')
+  async function signOut() {
+    setSigningOut(true); setError('')
+    try {
+      const response = await fetch('/api/session', { method: 'DELETE' })
+      if (!response.ok) throw new Error('Could not sign out. Please try again.')
+      navigate('/', { replace: true })
+      onSignOut()
+    } catch (error) { setError((error as Error).message); setSigningOut(false) }
+  }
+  return <><Toolbar component="header" className="app-header"><Link className="brand" to="/?view=globe&scope=all"><Public /><span>Travel Globe</span></Link><Stack direction="row" className="header-actions"><Button component={Link} to="/locations/new" startIcon={<AddLocationAlt />} variant="contained">Add location</Button><Tooltip title="Sign out"><span><Button aria-label="Sign out" onClick={signOut} disabled={signingOut} startIcon={signingOut ? <CircularProgress size={18} /> : <Logout />}><span className="signout-label">{signingOut ? 'Signing out…' : 'Sign out'}</span></Button></span></Tooltip></Stack></Toolbar><Snackbar open={!!error} message={error} onClose={() => setError('')} autoHideDuration={6000} /></>
 }
 
 function Landing({ onLogin }: { onLogin: (user: User) => void }) {
@@ -243,5 +257,5 @@ const theme = createTheme({ palette: { mode: 'dark', primary: { main: '#f0b95c',
 export default function App() {
   const [user, setUser] = useState<User | null>()
   useEffect(() => { fetch('/api/session').then(response => response.ok ? response.json() : null).then(setUser).catch(() => setUser(null)) }, [])
-  return <ThemeProvider theme={theme}><CssBaseline />{user ? <Routes><Route path="/" element={<AtlasPage />} /><Route path="/locations/new" element={<NewLocationPage />} /><Route path="/locations/:locationId" element={<LocationPage />} /><Route path="/users/:userId" element={<UserPage />} /><Route path="*" element={<AtlasPage />} /></Routes> : <Landing onLogin={setUser} />}</ThemeProvider>
+  return <ThemeProvider theme={theme}><CssBaseline />{user ? <SignOutContext.Provider value={() => setUser(null)}><Routes><Route path="/" element={<AtlasPage />} /><Route path="/locations/new" element={<NewLocationPage />} /><Route path="/locations/:locationId" element={<LocationPage />} /><Route path="/users/:userId" element={<UserPage />} /><Route path="*" element={<AtlasPage />} /></Routes></SignOutContext.Provider> : <Landing onLogin={setUser} />}</ThemeProvider>
 }

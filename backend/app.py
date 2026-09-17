@@ -113,6 +113,13 @@ async def read_session(user=Depends(get_current_user)):
     return {"email": user["email"]}
 
 
+@app.delete("/api/session", status_code=204)
+def delete_session(response: Response, db=Depends(get_db), user=Depends(get_current_user)):
+    db.execute("UPDATE users SET session_hash=NULL WHERE id=?", (user["id"],))
+    db.commit()
+    response.delete_cookie("session", samesite="lax")
+
+
 def iso_date(value):
     return value if isinstance(value, str) else value.isoformat() if value else None
 

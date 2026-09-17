@@ -133,6 +133,10 @@ button, a { -webkit-tap-highlight-color: transparent; }
   .user-layout { grid-template-columns: minmax(380px, 1.1fr) minmax(260px, .9fr); gap: 24px; }
 }
 @media (max-width: 700px) {
+  .header-actions { gap: 6px; }
+  .header-actions .signout-label { display: none; }
+  .header-actions .MuiButton-root[aria-label="Sign out"] { min-width: 40px; padding-inline: 8px; }
+  .header-actions .MuiButton-root[aria-label="Sign out"] .MuiButton-startIcon { margin: 0; }
   .landing { display: flex; min-height: 100svh; flex-direction: column; padding: 24px 20px 36px; overflow: visible; }
   .landing-copy { padding: 70px 0 16px; }
   .landing-copy h1 { font-size: clamp(3.8rem, 19vw, 5.5rem); }

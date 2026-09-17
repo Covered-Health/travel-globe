@@ -86,3 +86,28 @@ test('traveler detail links to each of their places', async () => {
   expect(await screen.findByRole('heading', { name: 'traveler@example.com' })).toBeVisible()
   expect(screen.getByRole('link', { name: 'Lisbon location' })).toHaveAttribute('href', '/locations/location-1')
 })
+
+test('sign out returns to the landing page without reloading', async () => {
+  const fetcher = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_input, init) =>
+    init?.method === 'DELETE' ? new Response(null, { status: 204 }) : Response.json({ email: 'traveler@example.com' }))
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/locations/new']}><App /><CurrentUrl /></MemoryRouter>)
+
+  await user.click(await screen.findByRole('button', { name: 'Sign out' }))
+
+  expect(fetcher).toHaveBeenCalledWith('/api/session', { method: 'DELETE' })
+  expect(await screen.findByRole('heading', { name: 'Every journey has a place' })).toBeVisible()
+  expect(screen.getByLabelText('Current URL')).toHaveTextContent('/')
+})
+
+test('failed sign out keeps the traveler signed in and offers retry', async () => {
+  vi.spyOn(globalThis, 'fetch').mockImplementation(async (_input, init) =>
+    init?.method === 'DELETE' ? new Response(null, { status: 500 }) : Response.json({ email: 'traveler@example.com' }))
+  const user = userEvent.setup()
+  render(<MemoryRouter initialEntries={['/locations/new']}><App /></MemoryRouter>)
+
+  await user.click(await screen.findByRole('button', { name: 'Sign out' }))
+
+  expect(await screen.findByText('Could not sign out. Please try again.')).toBeVisible()
+  expect(screen.getByRole('button', { name: 'Sign out' })).toBeEnabled()
+})
