@@ -1,4 +1,4 @@
 # Backend testing
 
-Exercise behavior through FastAPI's HTTP interface. Replace Mongo only at the
-collection boundary; do not mock application functions.
+Exercise behavior through FastAPI's HTTP interface against a temporary SQLite
+file. Do not mock application functions or the database.

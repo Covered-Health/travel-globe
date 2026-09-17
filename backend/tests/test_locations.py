@@ -1,163 +1,52 @@
 from datetime import date
 
-from fastapi.testclient import TestClient
-
-from backend.app import app, get_collection, get_current_user
+from backend.tests.conftest import add_place
 
 
-class MemoryCollection:
-    def __init__(self):
-        self.documents = []
-
-    async def insert_one(self, document):
-        document["_id"] = "location-1"
-        self.documents.append(document)
-
-    def find(self, _query):
-        return MemoryCursor(self.documents)
-
-
-class MemoryCursor:
-    def __init__(self, documents):
-        self.documents = documents
-
-    def sort(self, _field, _direction):
-        return self
-
-    async def to_list(self):
-        return self.documents
-
-
-def test_created_location_is_retrievable():
-    collection = MemoryCollection()
-    app.dependency_overrides[get_collection] = lambda: collection
-    app.dependency_overrides[get_current_user] = lambda: {"_id": "user-1"}
-    client = TestClient(app)
-
-    created = client.post(
-        "/api/locations",
-        data={
-            "name": "Lisbon",
-            "latitude": "38.7223",
-            "longitude": "-9.1393",
-            "timezone": "Europe/Lisbon",
-            "start_date": "2026-09-03",
-            "story": "Pastéis by the river",
-        },
-    )
-    locations = client.get("/api/locations?scope=all")
-
+def test_created_location_is_retrievable(alice):
+    created = add_place(alice, story="Pastéis by the river")
     assert created.status_code == 201
-    assert collection.documents[0]["start_date"] == "2026-09-03"
-    assert collection.documents[0]["end_date"] is None
-    assert locations.json() == [{
-        "id": "location-1",
-        "name": "Lisbon",
-        "latitude": 38.7223,
-        "longitude": -9.1393,
-        "timezone": "Europe/Lisbon",
-        "startDate": "2026-09-03",
-        "endDate": None,
-        "story": "Pastéis by the river",
-        "photos": [],
-        "embedPhotos": False,
-    }]
-    app.dependency_overrides.clear()
+    assert alice.get("/api/locations?scope=all").json() == [created.json()]
+    assert created.json()["story"] == "Pastéis by the river"
+    assert created.json()["endDate"] is None
 
 
-def test_current_scope_excludes_past_locations():
-    collection = MemoryCollection()
-    collection.documents = [
-        {"_id": "past", "name": "Rome", "latitude": 41.9, "longitude": 12.5,
-         "timezone": "Europe/Rome", "start_date": date(2020, 1, 1),
-         "end_date": date(2020, 1, 5), "story": "", "photos": [], "embed_photos": False},
-        {"_id": "current", "name": "Home", "latitude": 32.1, "longitude": 34.8,
-         "timezone": "Asia/Jerusalem", "start_date": date.today(),
-         "end_date": None, "story": "", "photos": [], "embed_photos": False},
-    ]
-    app.dependency_overrides[get_collection] = lambda: collection
-    app.dependency_overrides[get_current_user] = lambda: {"_id": "user-1"}
-
-    response = TestClient(app).get("/api/locations?scope=current")
-
-    assert [item["name"] for item in response.json()] == ["Home"]
-    app.dependency_overrides.clear()
+def test_current_scope_excludes_past_locations(alice):
+    add_place(alice, "Rome", start_date="2020-01-01", end_date="2020-01-05")
+    add_place(alice, "Home", start_date=date.today().isoformat())
+    assert [item["name"] for item in alice.get("/api/locations?scope=current").json()] == ["Home"]
 
 
-def test_photo_larger_than_ten_megabytes_is_rejected():
-    collection = MemoryCollection()
-    app.dependency_overrides[get_collection] = lambda: collection
-    app.dependency_overrides[get_current_user] = lambda: {"_id": "user-1"}
-
-    response = TestClient(app).post(
-        "/api/locations",
-        data={"name": "Lisbon", "latitude": "38.7", "longitude": "-9.1",
-              "timezone": "Europe/Lisbon", "start_date": "2026-09-03"},
-        files={"photos": ("large.jpg", b"x" * (10 * 1024 * 1024 + 1), "image/jpeg")},
-    )
-
+def test_photo_larger_than_ten_megabytes_is_rejected(alice):
+    response = alice.post("/api/locations", data={"name": "Lisbon", "latitude": "38.7", "longitude": "-9.1", "timezone": "Europe/Lisbon", "start_date": "2026-09-03"}, files={"photos": ("large.jpg", b"x" * (10 * 1024 * 1024 + 1), "image/jpeg")})
     assert response.status_code == 422
-    app.dependency_overrides.clear()
+    assert alice.get("/api/locations?scope=all").json() == []
 
 
-def test_empty_browser_file_placeholder_is_treated_as_no_photo():
-    collection = MemoryCollection()
-    app.dependency_overrides[get_collection] = lambda: collection
-    app.dependency_overrides[get_current_user] = lambda: {"_id": "user-1"}
-
-    response = TestClient(app).post(
-        "/api/locations",
-        data={"name": "Lisbon", "latitude": "38.7", "longitude": "-9.1",
-              "timezone": "Europe/Lisbon", "start_date": "2026-09-03"},
-        files={"photos": ("", b"", "application/octet-stream")},
-    )
-
+def test_empty_browser_file_placeholder_is_treated_as_no_photo(alice):
+    response = alice.post("/api/locations", data={"name": "Lisbon", "latitude": "38.7", "longitude": "-9.1", "timezone": "Europe/Lisbon", "start_date": "2026-09-03"}, files={"photos": ("", b"", "application/octet-stream")})
     assert response.status_code == 201
     assert response.json()["photos"] == []
-    app.dependency_overrides.clear()
 
 
-def test_gecko_empty_upload_is_treated_as_no_photo():
-    collection = MemoryCollection()
-    app.dependency_overrides[get_collection] = lambda: collection
-    app.dependency_overrides[get_current_user] = lambda: {"_id": "user-1"}
+def test_gecko_empty_upload_is_treated_as_no_photo(alice):
     boundary = "geckoformboundary"
-    fields = {
-        "name": "Bellevue", "latitude": "47.61038", "longitude": "-122.20068",
-        "timezone": "America/Los_Angeles", "start_date": "2026-08-13",
-    }
-    parts = [
-        f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n{value}\r\n'
-        for name, value in fields.items()
-    ]
-    parts.append(
-        f'--{boundary}\r\nContent-Disposition: form-data; name="photos"; filename=""\r\n'
-        'Content-Type: application/octet-stream\r\n\r\n\r\n'
-    )
+    fields = {"name": "Bellevue", "latitude": "47.61038", "longitude": "-122.20068", "timezone": "America/Los_Angeles", "start_date": "2026-08-13"}
+    parts = [f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n{value}\r\n' for name, value in fields.items()]
+    parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="photos"; filename=""\r\nContent-Type: application/octet-stream\r\n\r\n\r\n')
     parts.append(f'--{boundary}--\r\n')
-
-    response = TestClient(app).post(
-        "/api/locations", content="".join(parts).encode(),
-        headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
-    )
-
+    response = alice.post("/api/locations", content="".join(parts).encode(), headers={"Content-Type": f"multipart/form-data; boundary={boundary}"})
     assert response.status_code == 201
     assert response.json()["photos"] == []
-    app.dependency_overrides.clear()
 
 
-def test_story_markdown_and_photo_layout_choice_are_preserved():
-    collection = MemoryCollection()
-    app.dependency_overrides[get_collection] = lambda: collection
-    app.dependency_overrides[get_current_user] = lambda: {"_id": "user-1"}
-
-    response = TestClient(app).post(
-        "/api/locations",
-        data={"name": "Lisbon", "latitude": "38.7", "longitude": "-9.1",
-              "timezone": "Europe/Lisbon", "start_date": "2026-09-03",
-              "story": "A **bright** day", "embed_photos": "true"},
-    )
-
+def test_story_markdown_and_photo_layout_choice_are_preserved(alice):
+    response = add_place(alice, story="A **bright** day", embed_photos="true")
     assert response.json()["story"] == "A **bright** day"
     assert response.json()["embedPhotos"] is True
-    app.dependency_overrides.clear()
+
+
+def test_uploaded_photo_is_saved_and_served(alice):
+    response = alice.post("/api/locations", data={"name": "Lisbon", "latitude": "38.7", "longitude": "-9.1", "timezone": "Europe/Lisbon", "start_date": "2026-09-03"}, files={"photos": ("view.jpg", b"photo-bytes", "image/jpeg")})
+    assert response.status_code == 201
+    assert alice.get(response.json()["photos"][0]).content == b"photo-bytes"

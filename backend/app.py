@@ -1,7 +1,9 @@
 import hashlib
 import hmac
+import json
 import os
 import secrets
+import sqlite3
 from datetime import date
 from pathlib import Path
 from uuid import uuid4
@@ -9,22 +11,37 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from bson import ObjectId
-from pymongo import AsyncMongoClient, DESCENDING
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, EmailStr, Field
 
-UPLOADS = Path("uploads")
-UPLOADS.mkdir(exist_ok=True)
-mongo = AsyncMongoClient(os.getenv("MONGODB_URL", "mongodb://localhost:27017"))
+
+def uploads_path():
+    return Path(os.getenv("UPLOADS_PATH", "uploads"))
 
 
-def get_collection():
-    return mongo[os.getenv("MONGODB_DATABASE", "travel_globe")].locations
-
-
-def get_users():
-    return mongo[os.getenv("MONGODB_DATABASE", "travel_globe")].users
+def get_db():
+    path = Path(os.getenv("SQLITE_PATH", "data/travel-globe.sqlite3"))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    connection = sqlite3.connect(path, timeout=30, check_same_thread=False)
+    connection.row_factory = sqlite3.Row
+    connection.execute("PRAGMA foreign_keys=ON")
+    connection.executescript("""
+        CREATE TABLE IF NOT EXISTS users (
+            id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL, session_hash TEXT UNIQUE
+        );
+        CREATE TABLE IF NOT EXISTS locations (
+            id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id),
+            name TEXT NOT NULL, latitude REAL NOT NULL, longitude REAL NOT NULL,
+            timezone TEXT NOT NULL, start_date TEXT NOT NULL, end_date TEXT,
+            story TEXT NOT NULL, photos TEXT NOT NULL, embed_photos INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS locations_user_date ON locations(user_id, start_date DESC);
+    """)
+    try:
+        yield connection
+    finally:
+        connection.close()
 
 
 app = FastAPI(title="Travel Globe")
@@ -34,7 +51,20 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.mount("/uploads", StaticFiles(directory=UPLOADS), name="uploads")
+
+
+@app.get("/healthz")
+def health(db=Depends(get_db)):
+    db.execute("CREATE TEMP TABLE IF NOT EXISTS healthz (value INTEGER)")
+    return {"ok": True}
+
+
+@app.get("/uploads/{filename}")
+def read_photo(filename: str):
+    path = uploads_path() / filename
+    if not path.is_file():
+        raise HTTPException(404, "Photo not found")
+    return FileResponse(path)
 
 
 class Credentials(BaseModel):
@@ -55,24 +85,25 @@ def password_matches(password: str, encoded: str) -> bool:
 
 
 @app.post("/api/session")
-async def create_session(credentials: Credentials, response: Response, users=Depends(get_users)):
+async def create_session(credentials: Credentials, response: Response, db=Depends(get_db)):
     email = str(credentials.email).lower()
-    user = await users.find_one({"email": email})
+    user = db.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
     if user and not password_matches(credentials.password, user["password_hash"]):
         raise HTTPException(401, "Incorrect password")
     token = secrets.token_urlsafe(32)
     session_hash = hashlib.sha256(token.encode()).hexdigest()
     if user:
-        await users.update_one({"_id": user["_id"]}, {"$set": {"session_hash": session_hash}})
+        db.execute("UPDATE users SET session_hash=? WHERE id=?", (session_hash, user["id"]))
     else:
-        await users.insert_one({"email": email, "password_hash": hash_password(credentials.password), "session_hash": session_hash})
+        db.execute("INSERT INTO users VALUES (?, ?, ?, ?)", (uuid4().hex, email, hash_password(credentials.password), session_hash))
+    db.commit()
     response.set_cookie("session", token, httponly=True, samesite="lax", max_age=30 * 24 * 60 * 60)
     return {"email": email}
 
 
-async def get_current_user(request: Request, users=Depends(get_users)):
+async def get_current_user(request: Request, db=Depends(get_db)):
     token = request.cookies.get("session")
-    if not token or not (user := await users.find_one({"session_hash": hashlib.sha256(token.encode()).hexdigest()})):
+    if not token or not (user := db.execute("SELECT * FROM users WHERE session_hash=?", (hashlib.sha256(token.encode()).hexdigest(),)).fetchone()):
         raise HTTPException(401, "Login required")
     return user
 
@@ -88,16 +119,16 @@ def iso_date(value):
 
 def location_json(document):
     return {
-        "id": str(document["_id"]),
+        "id": document["id"],
         "name": document["name"],
         "latitude": document["latitude"],
         "longitude": document["longitude"],
         "timezone": document["timezone"],
         "startDate": iso_date(document["start_date"]),
         "endDate": iso_date(document["end_date"]),
-        "story": document.get("story", document.get("note", "")),
-        "photos": document["photos"],
-        "embedPhotos": document.get("embed_photos", False),
+        "story": document["story"],
+        "photos": json.loads(document["photos"]),
+        "embedPhotos": bool(document["embed_photos"]),
     }
 
 
@@ -109,14 +140,10 @@ def in_scope(document, scope):
     )
 
 
-def database_id(value):
-    return ObjectId(value) if ObjectId.is_valid(value) else value
-
-
-async def shared_location(document, users):
-    owner = await users.find_one({"_id": document["user_id"]})
+def shared_location(document, db):
+    owner = db.execute("SELECT id, email FROM users WHERE id=?", (document["user_id"],)).fetchone()
     item = location_json(document)
-    item["traveler"] = {"id": str(owner["_id"]), "email": owner["email"]}
+    item["traveler"] = {"id": owner["id"], "email": owner["email"]}
     return item
 
 
@@ -131,7 +158,7 @@ async def create_location(
     story: str = Form("", max_length=20_000),
     embed_photos: bool = Form(False),
     photos: list[UploadFile | str] = File(default=[]),
-    collection=Depends(get_collection),
+    db=Depends(get_db),
     user=Depends(get_current_user),
 ):
     if end_date and end_date < start_date:
@@ -157,11 +184,12 @@ async def create_location(
 
     photo_urls = []
     for filename, content in pending_photos:
-        (UPLOADS / filename).write_bytes(content)
+        uploads_path().mkdir(parents=True, exist_ok=True)
+        (uploads_path() / filename).write_bytes(content)
         photo_urls.append(f"/uploads/{filename}")
 
     document = {
-        "user_id": user["_id"],
+        "user_id": user["id"],
         "name": name,
         "latitude": latitude,
         "longitude": longitude,
@@ -172,44 +200,66 @@ async def create_location(
         "photos": photo_urls,
         "embed_photos": embed_photos,
     }
-    await collection.insert_one(document)
+    document["id"] = uuid4().hex
+    db.execute("INSERT INTO locations VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (
+        document["id"], document["user_id"], name, latitude, longitude, timezone,
+        document["start_date"], document["end_date"], story, json.dumps(photo_urls), int(embed_photos),
+    ))
+    db.commit()
+    document["photos"] = json.dumps(photo_urls)
     return location_json(document)
 
 
 @app.get("/api/locations")
-async def list_locations(scope: str = "current", collection=Depends(get_collection), user=Depends(get_current_user)):
+async def list_locations(scope: str = "current", db=Depends(get_db), user=Depends(get_current_user)):
     if scope not in {"current", "all"}:
         raise HTTPException(422, "Scope must be current or all")
-    documents = await collection.find({"user_id": user["_id"]}).sort("start_date", DESCENDING).to_list()
+    documents = db.execute("SELECT * FROM locations WHERE user_id=? ORDER BY start_date DESC", (user["id"],)).fetchall()
     documents = [item for item in documents if in_scope(item, scope)]
     return [location_json(item) for item in documents]
 
 
 @app.get("/api/atlas")
-async def read_atlas(scope: str = "current", collection=Depends(get_collection), users=Depends(get_users), _user=Depends(get_current_user)):
+async def read_atlas(scope: str = "current", db=Depends(get_db), _user=Depends(get_current_user)):
     if scope not in {"current", "all"}:
         raise HTTPException(422, "Scope must be current or all")
-    documents = await collection.find({}).sort("start_date", DESCENDING).to_list()
+    documents = db.execute("SELECT * FROM locations ORDER BY start_date DESC").fetchall()
     result = []
     for document in documents:
         if not in_scope(document, scope):
             continue
-        result.append(await shared_location(document, users))
+        result.append(shared_location(document, db))
     return result
 
 
 @app.get("/api/users/{user_id}")
-async def read_user(user_id: str, collection=Depends(get_collection), users=Depends(get_users), _user=Depends(get_current_user)):
-    owner = await users.find_one({"_id": database_id(user_id)})
+async def read_user(user_id: str, db=Depends(get_db), _user=Depends(get_current_user)):
+    owner = db.execute("SELECT id, email FROM users WHERE id=?", (user_id,)).fetchone()
     if not owner:
         raise HTTPException(404, "Traveler not found")
-    documents = await collection.find({"user_id": owner["_id"]}).sort("start_date", DESCENDING).to_list()
-    return {"id": str(owner["_id"]), "email": owner["email"], "locations": [location_json(item) for item in documents]}
+    documents = db.execute("SELECT * FROM locations WHERE user_id=? ORDER BY start_date DESC", (user_id,)).fetchall()
+    return {"id": owner["id"], "email": owner["email"], "locations": [location_json(item) for item in documents]}
 
 
 @app.get("/api/locations/{location_id}")
-async def read_location(location_id: str, collection=Depends(get_collection), users=Depends(get_users), _user=Depends(get_current_user)):
-    document = await collection.find_one({"_id": database_id(location_id)})
+async def read_location(location_id: str, db=Depends(get_db), _user=Depends(get_current_user)):
+    document = db.execute("SELECT * FROM locations WHERE id=?", (location_id,)).fetchone()
     if not document:
         raise HTTPException(404, "Location not found")
-    return await shared_location(document, users)
+    return shared_location(document, db)
+
+
+@app.get("/{path:path}", include_in_schema=False)
+def read_web(path: str):
+    root = Path(os.getenv("DIST_PATH", "dist"))
+    asset = root / path
+    if not asset.resolve().is_relative_to(root.resolve()):
+        raise HTTPException(404, "Not found")
+    if asset.is_file():
+        return FileResponse(asset)
+    if path and "." in Path(path).name:
+        raise HTTPException(404, "Not found")
+    index = root / "index.html"
+    if not index.is_file():
+        raise HTTPException(404, "Not found")
+    return FileResponse(index)

@@ -7,5 +7,6 @@ playwright-report/
 test-results/
 .env
 .env.local
+data/
 uploads/*
 !uploads/.gitkeep
