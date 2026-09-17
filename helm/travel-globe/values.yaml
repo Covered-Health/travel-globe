@@ -1,0 +1,15 @@
+image:
+  repository: travel-globe
+  tag: latest
+  pullPolicy: IfNotPresent
+
+persistence:
+  size: 5Gi
+  storageClassName: ""
+  existingClaim: ""
+
+ingress:
+  enabled: false
+  className: ""
+  host: travel-globe.example.com
+  tlsSecretName: ""
