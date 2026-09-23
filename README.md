@@ -28,6 +28,14 @@ override `SQLITE_PATH`, `UPLOADS_PATH`, or `WEB_ORIGIN` as needed. Back up
 both the SQLite file and uploaded photos together. Set
 `SESSION_COOKIE_SECURE=true` when serving over HTTPS.
 
+## Demo data
+
+With the backend running, create a total of 100 locations across 10 demo users:
+
+```sh
+uv run --script scripts/seed.py --points 100 --users 10
+```
+
 ## Kubernetes
 
 Build and push a single image containing the API and built frontend, then
