@@ -4,7 +4,7 @@ from backend.tests.conftest import add_place
 
 
 def test_created_location_is_retrievable(alice):
-    created = add_place(alice, story="Pastéis by the river")
+    created = add_place(alice, "Lisbon", story="Pastéis by the river")
     assert created.status_code == 201
     assert alice.get("/api/locations?scope=all").json() == [created.json()]
     assert created.json()["story"] == "Pastéis by the river"
@@ -18,13 +18,36 @@ def test_current_scope_excludes_past_locations(alice):
 
 
 def test_photo_larger_than_ten_megabytes_is_rejected(alice):
-    response = alice.post("/api/locations", data={"name": "Lisbon", "latitude": "38.7", "longitude": "-9.1", "timezone": "Europe/Lisbon", "start_date": "2026-09-03"}, files={"photos": ("large.jpg", b"x" * (10 * 1024 * 1024 + 1), "image/jpeg")})
+    response = add_place(
+        alice,
+        "Lisbon",
+        files={"photos": ("large.jpg", b"x" * (10 * 1024 * 1024 + 1), "image/jpeg")},
+    )
     assert response.status_code == 422
     assert alice.get("/api/locations?scope=all").json() == []
 
 
+def test_end_date_before_start_date_is_rejected(alice):
+    response = add_place(alice, "Lisbon", end_date="2026-09-02")
+    assert response.status_code == 422
+
+
+def test_unknown_timezone_is_rejected(alice):
+    response = add_place(alice, "Lisbon", timezone="Mars/Olympus_Mons")
+    assert response.status_code == 422
+
+
+def test_non_image_upload_is_rejected(alice):
+    response = add_place(alice, "Lisbon", files={"photos": ("notes.txt", b"hello", "text/plain")})
+    assert response.status_code == 422
+
+
+def test_unknown_scope_is_rejected(alice):
+    assert alice.get("/api/locations?scope=nearby").status_code == 422
+
+
 def test_empty_browser_file_placeholder_is_treated_as_no_photo(alice):
-    response = alice.post("/api/locations", data={"name": "Lisbon", "latitude": "38.7", "longitude": "-9.1", "timezone": "Europe/Lisbon", "start_date": "2026-09-03"}, files={"photos": ("", b"", "application/octet-stream")})
+    response = add_place(alice, "Lisbon", files={"photos": ("", b"", "application/octet-stream")})
     assert response.status_code == 201
     assert response.json()["photos"] == []
 
@@ -41,12 +64,12 @@ def test_gecko_empty_upload_is_treated_as_no_photo(alice):
 
 
 def test_story_markdown_and_photo_layout_choice_are_preserved(alice):
-    response = add_place(alice, story="A **bright** day", embed_photos="true")
+    response = add_place(alice, "Lisbon", story="A **bright** day", embed_photos="true")
     assert response.json()["story"] == "A **bright** day"
     assert response.json()["embedPhotos"] is True
 
 
 def test_uploaded_photo_is_saved_and_served(alice):
-    response = alice.post("/api/locations", data={"name": "Lisbon", "latitude": "38.7", "longitude": "-9.1", "timezone": "Europe/Lisbon", "start_date": "2026-09-03"}, files={"photos": ("view.jpg", b"photo-bytes", "image/jpeg")})
+    response = add_place(alice, "Lisbon", files={"photos": ("view.jpg", b"photo-bytes", "image/jpeg")})
     assert response.status_code == 201
     assert alice.get(response.json()["photos"][0]).content == b"photo-bytes"

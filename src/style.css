@@ -1,182 +1,807 @@
-:root { font-family: "Avenir Next", "Century Gothic", sans-serif; color: #edf3eb; background: #091513; color-scheme: dark; font-synthesis: none; }
-* { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
-body { margin: 0; min-width: 320px; min-height: 100vh; background: #091513; }
-button, a { -webkit-tap-highlight-color: transparent; }
-.MuiButton-root, .MuiIconButton-root, .MuiToggleButton-root, button, a { transition: color .18s ease, background-color .18s ease, border-color .18s ease, opacity .18s ease, transform .18s ease !important; }
-.MuiButton-root:hover, button:hover { transform: translateY(-1px); }
-.MuiButton-root:active, button:active { transform: translateY(1px) scale(.99); }
-.MuiButton-root:focus-visible, .MuiIconButton-root:focus-visible, .MuiToggleButton-root:focus-visible, button:focus-visible, a:focus-visible { outline: 3px solid #87c8bd; outline-offset: 3px; }
-.MuiButton-root.Mui-disabled, button:disabled { opacity: .48; cursor: not-allowed; transform: none; }
-.MuiPaper-root, .MuiCard-root { background-image: none !important; }
-.eyebrow { color: #87c8bd; font-size: .72rem !important; font-weight: 800 !important; letter-spacing: .18em !important; text-transform: uppercase; }
-.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; font-family: "Iowan Old Style", "Palatino Linotype", serif; font-size: 1.18rem; font-weight: 700; }
-.brand svg { color: #f0b95c; }
-.landing { min-height: 100vh; display: grid; grid-template-columns: minmax(430px, 1.05fr) minmax(420px, .95fr); grid-template-rows: auto 1fr auto; column-gap: clamp(32px, 7vw, 120px); padding: 32px clamp(28px, 6vw, 100px) 48px; overflow: hidden; }
-.landing > .brand { z-index: 2; grid-column: 1 / -1; padding-bottom: 26px; border-bottom: 1px solid #23332f; }
-.landing-copy { align-self: center; max-width: 700px; padding: 8vh 0 4vh; }
-.landing-copy, .login-form { position: relative; z-index: 2; }
-.landing-copy h1, .atlas-heading h1, .form-intro h2, .journey-index h2, .timeline-intro h2, .login-form h2 { font-family: "Iowan Old Style", "Palatino Linotype", serif; font-weight: 500; letter-spacing: -.045em; }
-.landing-copy h1 { margin: 18px 0 26px; font-size: clamp(4.4rem, 7.5vw, 8.6rem); line-height: .82; }
-.landing-copy .lead { max-width: 610px; color: #afbbb6; font-size: clamp(1.05rem, 1.5vw, 1.28rem); line-height: 1.7; }
-.feature-line { margin-top: 50px; align-items: center; flex-wrap: wrap; gap: 12px 18px !important; color: #d4ddd9; }
-.feature-line span { color: #f0b95c; font-size: .68rem; font-weight: 700; letter-spacing: .12em; }
-.feature-line p { margin: 0 14px 0 0; font-size: .84rem; }
-.landing-globe { position: absolute; z-index: 1; inset: 88px 0 0; min-width: 0; }
-.example-caption { position: absolute; right: 15%; bottom: 12%; color: #87c8bd; text-align: center; font-size: .68rem !important; font-weight: 800 !important; letter-spacing: .14em !important; text-transform: uppercase; }
-.login-form { grid-column: 1 / -1; display: grid; grid-template-columns: auto minmax(180px, 1fr) minmax(180px, 1fr) auto; gap: 16px; align-items: center; padding-top: 30px; border-top: 1px solid #31423e; }
-.login-form h2 { font-size: 2rem; margin: 0 20px 0 0; }
-.login-form .eyebrow { display: none; }
-.login-form .MuiTypography-caption { grid-column: 2 / 4; color: #83928d; }
-.app-shell { min-height: 100vh; background: #091513; }
-.app-header { min-height: 76px !important; padding-inline: clamp(20px, 4vw, 64px) !important; border-bottom: 1px solid #23332f; justify-content: space-between; }
-.header-actions { display: flex; align-items: center; gap: 22px; min-width: 0; }
-.account { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #91a19b; font-size: .8rem !important; }
-.editor-band { background: #10201d; border-bottom: 1px solid #2a3b36; }
-.location-form { padding: clamp(40px, 6vw, 80px) 0; }
-.form-intro { display: grid; grid-template-columns: .6fr 1.1fr 1fr; gap: 28px; align-items: end; margin-bottom: 40px; }
-.form-intro h1, .form-intro h2 { margin: 0; font-family: "Iowan Old Style", "Palatino Linotype", serif; font-size: clamp(2.4rem, 4vw, 4.5rem); font-weight: 500; line-height: .92; letter-spacing: -.045em; }
-.form-intro > p:last-child { color: #9ba9a4; line-height: 1.7; max-width: 420px; }
-.story-editor { border: 1px solid #56645f; border-radius: 4px; background: #f6f2e8; color: #17211f; overflow: hidden; min-height: 200px; }
-.photo-actions { align-items: center; gap: 16px !important; }
-.save-button { margin-left: auto !important; min-width: 160px !important; }
-.atlas { padding-top: clamp(56px, 8vw, 110px); padding-bottom: 100px; }
-.atlas-heading { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 40px; align-items: end; margin-bottom: clamp(48px, 7vw, 96px); }
-.atlas-heading h1 { margin: 10px 0 6px; font-size: clamp(3.6rem, 7vw, 7.5rem); line-height: .9; }
-.atlas-subtitle { max-width: 590px; color: #9daca7; font-size: 1.05rem !important; }
-.view-controls { align-items: center; gap: 24px !important; white-space: nowrap; }
-.MuiToggleButtonGroup-root { background: #10201d; }
-.MuiToggleButton-root { gap: 7px; padding-inline: 18px !important; }
-.atlas-layout { min-height: 600px; display: grid; grid-template-columns: minmax(460px, 1.3fr) minmax(300px, .7fr); align-items: center; gap: clamp(36px, 8vw, 120px); }
-.world-globe { position: relative; display: grid; place-items: center; width: 100%; min-width: 0; overflow: hidden; }
-.world-globe.immersive { height: 100%; }
-.world-globe.immersive canvas { max-width: none; }
-.world-globe canvas { max-width: 100%; height: auto !important; cursor: grab; }
-.world-globe canvas:active { cursor: grabbing; }
-.globe-hint { position: absolute; bottom: 5%; left: 50%; transform: translateX(-50%); color: #7e8d88; letter-spacing: .05em !important; white-space: nowrap; }
-.map-attribution { position: absolute; right: 2%; bottom: 1%; color: #71807b; font-size: .58rem; text-decoration: none; }
-.map-attribution:hover { color: #a8b5b0; }
-.journey-index { min-width: 0; }
-.journey-index > h2 { margin: 14px 0 32px; font-size: clamp(2.2rem, 4vw, 4.1rem); line-height: .95; }
-.place-list { border-top: 1px solid #33433e; }
-.place-list button, .place-list a { appearance: none; width: 100%; display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 18px 4px; color: inherit; background: transparent; border: 0; border-bottom: 1px solid #263631; cursor: pointer; text-align: left; text-decoration: none; }
-.place-list button:hover, .place-list a:hover { color: #f0b95c; padding-left: 10px; }
-.place-list span { color: #73827d; font-size: .66rem; letter-spacing: .1em; }
-.place-list strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: "Iowan Old Style", serif; font-size: 1.35rem; }
-.place-list small { max-width: 125px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #7f8f89; }
-.empty-copy { max-width: 440px; color: #98a7a2; font-size: 1.05rem; line-height: 1.7; }
-.empty-copy .MuiButton-root { margin-top: 22px; }
-.globe-skeleton { width: min(46vw, 600px) !important; height: min(46vw, 600px) !important; justify-self: center; }
-.journey-skeleton { padding: 20px 0; border-bottom: 1px solid #263631; }
-.traveler-list { border-top: 1px solid #33433e; }
-.traveler-list a { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 19px 3px; color: inherit; border-bottom: 1px solid #263631; text-decoration: none; }
-.traveler-list a:hover { color: #f0b95c; padding-left: 9px; }
-.traveler-list i, .byline i { width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 0 4px #ffffff0c; }
-.traveler-list strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.traveler-list span { color: #778680; font-size: .76rem; }
-.atlas-place-links { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 26px; }
-.atlas-place-links a { display: inline-flex; align-items: center; gap: 4px; color: #96a59f; font-size: .78rem; text-decoration: none; }
-.atlas-place-links a:hover { color: #f0b95c; }
-.atlas-place-links svg { width: 14px; }
-.timeline-list { max-width: 1040px; margin: 0 auto; }
-.timeline-list > .eyebrow { display: block; padding-bottom: 18px; border-bottom: 1px solid #33433e; }
-.timeline-list article { display: grid; grid-template-columns: 12px 140px minmax(180px, 1fr) minmax(180px, .7fr); gap: 20px; align-items: center; padding: 28px 4px; border-bottom: 1px solid #263631; }
-.timeline-list article a { overflow: hidden; color: inherit; text-overflow: ellipsis; white-space: nowrap; text-decoration: none; }
-.timeline-list article a:first-of-type { font-family: "Iowan Old Style", serif; font-size: 1.7rem; }
-.timeline-list article a:hover { color: #f0b95c; }
-.timeline-list time { color: #82918c; font-size: .78rem; letter-spacing: .06em; }
-.traveler-dot { width: 9px; height: 9px; border-radius: 50%; }
-.editor-page { min-height: calc(100vh - 76px); padding: 52px 0 100px; background: #10201d; }
-.detail-page { padding-top: 52px; padding-bottom: 110px; }
-.detail-hero, .user-hero { display: flex; justify-content: space-between; align-items: start; gap: 28px; margin: clamp(55px, 9vw, 120px) 0 26px; }
-.detail-hero h1, .user-hero h1 { max-width: 100%; margin: 8px 0 18px; font-family: "Iowan Old Style", serif; font-size: clamp(4.5rem, 10vw, 10rem); font-weight: 500; line-height: .82; letter-spacing: -.055em; overflow-wrap: anywhere; }
-.user-hero h1 { font-size: clamp(3rem, 7vw, 7rem); }
-.byline { display: inline-flex; align-items: center; gap: 12px; color: #aab7b2; text-decoration: none; }
-.byline:hover { color: #f0b95c; }
-.detail-story { max-width: 820px; margin: 70px 0; font-size: clamp(1.1rem, 1.6vw, 1.32rem); }
-.user-swatch { flex: 0 0 auto; width: 68px; height: 68px; border-radius: 50%; box-shadow: 0 0 0 12px #ffffff08; }
-.user-layout { display: grid; grid-template-columns: minmax(440px, 1.2fr) minmax(300px, .8fr); gap: clamp(30px, 8vw, 110px); align-items: center; }
-.story-band, .timeline-view { margin-top: clamp(80px, 12vw, 170px); }
-.story-band > .eyebrow { display: block; padding-bottom: 18px; border-bottom: 1px solid #33433e; }
-.timeline-view { display: grid; grid-template-columns: minmax(260px, .55fr) minmax(0, 1fr); column-gap: clamp(40px, 9vw, 140px); }
-.timeline-intro { position: sticky; top: 40px; align-self: start; }
-.timeline-intro h2 { font-size: clamp(2.7rem, 5vw, 5.5rem); line-height: .94; }
-.location-story { padding: clamp(42px, 7vw, 88px) 0; border-bottom: 1px solid #33433e; }
-.location-story > header { display: flex; justify-content: space-between; align-items: start; gap: 24px; }
-.location-story h3 { margin: 8px 0 0; font-family: "Iowan Old Style", serif; font-size: clamp(2.8rem, 5vw, 5.6rem); font-weight: 500; line-height: .9; letter-spacing: -.04em; overflow-wrap: anywhere; }
-.dates { margin-top: 16px !important; color: #8d9c97; font-size: .82rem !important; letter-spacing: .06em !important; }
-.story { max-width: 780px; margin-top: 30px; color: #d2dbd7; font-size: 1.05rem; line-height: 1.8; }
-.story h1, .story h2, .story h3 { font-family: "Iowan Old Style", serif; }
-.inline-photos { width: 100%; margin-top: 32px; padding: 0; border: 0; background: none; cursor: pointer; display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
-.inline-photos.count-1 { grid-template-columns: 1fr; }
-.inline-photos.count-3 { grid-template-columns: 1.4fr 1fr; }
-.inline-photos.count-3 img:first-child { grid-row: span 2; height: 568px; }
-.inline-photos img { width: 100%; height: 280px; object-fit: cover; }
-.photo-gallery { margin-top: 42px; }
-.gallery-strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 6px; margin-top: 14px; }
-.gallery-strip button { border: 0; padding: 0; background: none; cursor: pointer; overflow: hidden; }
-.gallery-strip button:hover img { transform: scale(1.04); }
-.gallery-strip img { display: block; width: 100%; height: 92px; object-fit: cover; transition: transform .25s ease; }
-.gallery-dialog { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 8px; }
-.gallery-dialog img { width: 100%; height: 360px; object-fit: cover; }
-.MuiDialogTitle-root { display: flex; align-items: center; justify-content: space-between; font-family: "Iowan Old Style", serif !important; font-size: 2rem !important; }
+:root {
+  font-family: "Avenir Next", "Century Gothic", sans-serif;
+  color: #edf3eb;
+  background: #091513;
+  color-scheme: dark;
+  font-synthesis: none;
+}
+* {
+  box-sizing: border-box;
+}
+html {
+  scroll-behavior: smooth;
+}
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: #091513;
+}
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+.MuiButton-root,
+.MuiIconButton-root,
+.MuiToggleButton-root,
+button,
+a {
+  transition:
+    color 0.18s ease,
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    opacity 0.18s ease,
+    transform 0.18s ease !important;
+}
+.MuiButton-root:hover,
+button:hover {
+  transform: translateY(-1px);
+}
+.MuiButton-root:active,
+button:active {
+  transform: translateY(1px) scale(0.99);
+}
+.MuiButton-root:focus-visible,
+.MuiIconButton-root:focus-visible,
+.MuiToggleButton-root:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid #87c8bd;
+  outline-offset: 3px;
+}
+.MuiButton-root.Mui-disabled,
+button:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+  transform: none;
+}
+.MuiPaper-root,
+.MuiCard-root {
+  background-image: none !important;
+}
+.eyebrow {
+  color: #87c8bd;
+  font-size: 0.72rem !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.18em !important;
+  text-transform: uppercase;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: inherit;
+  text-decoration: none;
+  font-family: "Iowan Old Style", "Palatino Linotype", serif;
+  font-size: 1.18rem;
+  font-weight: 700;
+}
+.brand svg {
+  color: #f0b95c;
+}
+.landing {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(430px, 1.05fr) minmax(420px, 0.95fr);
+  grid-template-rows: auto 1fr auto;
+  column-gap: clamp(32px, 7vw, 120px);
+  padding: 32px clamp(28px, 6vw, 100px) 48px;
+  overflow: hidden;
+}
+.landing > .brand {
+  z-index: 2;
+  grid-column: 1 / -1;
+  padding-bottom: 26px;
+  border-bottom: 1px solid #23332f;
+}
+.landing-copy {
+  align-self: center;
+  max-width: 700px;
+  padding: 8vh 0 4vh;
+}
+.landing-copy,
+.login-form {
+  position: relative;
+  z-index: 2;
+}
+.landing-copy h1,
+.atlas-heading h1,
+.form-intro h2,
+.journey-index h2,
+.login-form h2 {
+  font-family: "Iowan Old Style", "Palatino Linotype", serif;
+  font-weight: 500;
+  letter-spacing: -0.045em;
+}
+.landing-copy h1 {
+  margin: 18px 0 26px;
+  font-size: clamp(4.4rem, 7.5vw, 8.6rem);
+  line-height: 0.82;
+}
+.landing-copy .lead {
+  max-width: 610px;
+  color: #afbbb6;
+  font-size: clamp(1.05rem, 1.5vw, 1.28rem);
+  line-height: 1.7;
+}
+.feature-line {
+  margin-top: 50px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 18px !important;
+  color: #d4ddd9;
+}
+.feature-line span {
+  color: #f0b95c;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+.feature-line p {
+  margin: 0 14px 0 0;
+  font-size: 0.84rem;
+}
+.landing-globe {
+  position: absolute;
+  z-index: 1;
+  inset: 88px 0 0;
+  min-width: 0;
+}
+.example-caption {
+  position: absolute;
+  right: 15%;
+  bottom: 12%;
+  color: #87c8bd;
+  text-align: center;
+  font-size: 0.68rem !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.14em !important;
+  text-transform: uppercase;
+}
+.login-form {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: auto minmax(180px, 1fr) minmax(180px, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  padding-top: 30px;
+  border-top: 1px solid #31423e;
+}
+.login-form h2 {
+  font-size: 2rem;
+  margin: 0 20px 0 0;
+}
+.login-form .eyebrow {
+  display: none;
+}
+.login-form .MuiTypography-caption {
+  grid-column: 2 / 4;
+  color: #83928d;
+}
+.app-shell {
+  min-height: 100vh;
+  background: #091513;
+}
+.app-header {
+  min-height: 76px !important;
+  padding-inline: clamp(20px, 4vw, 64px) !important;
+  border-bottom: 1px solid #23332f;
+  justify-content: space-between;
+}
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  min-width: 0;
+}
+.location-form {
+  padding: clamp(40px, 6vw, 80px) 0;
+}
+.form-intro {
+  display: grid;
+  grid-template-columns: 0.6fr 1.1fr 1fr;
+  gap: 28px;
+  align-items: end;
+  margin-bottom: 40px;
+}
+.form-intro h1,
+.form-intro h2 {
+  margin: 0;
+  font-family: "Iowan Old Style", "Palatino Linotype", serif;
+  font-size: clamp(2.4rem, 4vw, 4.5rem);
+  font-weight: 500;
+  line-height: 0.92;
+  letter-spacing: -0.045em;
+}
+.form-intro > p:last-child {
+  color: #9ba9a4;
+  line-height: 1.7;
+  max-width: 420px;
+}
+.story-editor {
+  border: 1px solid #56645f;
+  border-radius: 4px;
+  background: #f6f2e8;
+  color: #17211f;
+  overflow: hidden;
+  min-height: 200px;
+}
+.photo-actions {
+  align-items: center;
+  gap: 16px !important;
+}
+.save-button {
+  margin-left: auto !important;
+  min-width: 160px !important;
+}
+.atlas {
+  padding-top: clamp(56px, 8vw, 110px);
+  padding-bottom: 100px;
+}
+.atlas-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 40px;
+  align-items: end;
+  margin-bottom: clamp(48px, 7vw, 96px);
+}
+.atlas-heading h1 {
+  margin: 10px 0 6px;
+  font-size: clamp(3.6rem, 7vw, 7.5rem);
+  line-height: 0.9;
+}
+.atlas-subtitle {
+  max-width: 590px;
+  color: #9daca7;
+  font-size: 1.05rem !important;
+}
+.view-controls {
+  align-items: center;
+  gap: 24px !important;
+  white-space: nowrap;
+}
+.MuiToggleButtonGroup-root {
+  background: #10201d;
+}
+.MuiToggleButton-root {
+  gap: 7px;
+  padding-inline: 18px !important;
+}
+.atlas-layout {
+  min-height: 600px;
+  display: grid;
+  grid-template-columns: minmax(460px, 1.3fr) minmax(300px, 0.7fr);
+  align-items: center;
+  gap: clamp(36px, 8vw, 120px);
+}
+.world-globe {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+.world-globe.immersive {
+  height: 100%;
+}
+.world-globe.immersive canvas {
+  max-width: none;
+}
+.world-globe canvas {
+  max-width: 100%;
+  height: auto !important;
+  cursor: grab;
+}
+.world-globe canvas:active {
+  cursor: grabbing;
+}
+.globe-hint {
+  position: absolute;
+  bottom: 5%;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #7e8d88;
+  letter-spacing: 0.05em !important;
+  white-space: nowrap;
+}
+.map-attribution {
+  position: absolute;
+  right: 2%;
+  bottom: 1%;
+  color: #71807b;
+  font-size: 0.58rem;
+  text-decoration: none;
+}
+.map-attribution:hover {
+  color: #a8b5b0;
+}
+.journey-index {
+  min-width: 0;
+}
+.journey-index > h2 {
+  margin: 14px 0 32px;
+  font-size: clamp(2.2rem, 4vw, 4.1rem);
+  line-height: 0.95;
+}
+.place-list {
+  border-top: 1px solid #33433e;
+}
+.place-list a {
+  appearance: none;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  padding: 18px 4px;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid #263631;
+  cursor: pointer;
+  text-align: left;
+  text-decoration: none;
+}
+.place-list a:hover {
+  color: #f0b95c;
+  padding-left: 10px;
+}
+.place-list span {
+  color: #73827d;
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+}
+.place-list strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: "Iowan Old Style", serif;
+  font-size: 1.35rem;
+}
+.place-list small {
+  max-width: 125px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #7f8f89;
+}
+.empty-copy {
+  max-width: 440px;
+  color: #98a7a2;
+  font-size: 1.05rem;
+  line-height: 1.7;
+}
+.empty-copy .MuiButton-root {
+  margin-top: 22px;
+}
+.globe-skeleton {
+  width: min(46vw, 600px) !important;
+  height: min(46vw, 600px) !important;
+  justify-self: center;
+}
+.journey-skeleton {
+  padding: 20px 0;
+  border-bottom: 1px solid #263631;
+}
+.traveler-list {
+  border-top: 1px solid #33433e;
+}
+.traveler-list a {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  padding: 19px 3px;
+  color: inherit;
+  border-bottom: 1px solid #263631;
+  text-decoration: none;
+}
+.traveler-list a:hover {
+  color: #f0b95c;
+  padding-left: 9px;
+}
+.traveler-list i,
+.byline i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px #ffffff0c;
+}
+.traveler-list strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.traveler-list span {
+  color: #778680;
+  font-size: 0.76rem;
+}
+.atlas-place-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin-top: 26px;
+}
+.atlas-place-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #96a59f;
+  font-size: 0.78rem;
+  text-decoration: none;
+}
+.atlas-place-links a:hover {
+  color: #f0b95c;
+}
+.atlas-place-links svg {
+  width: 14px;
+}
+.timeline-list {
+  max-width: 1040px;
+  margin: 0 auto;
+}
+.timeline-list > .eyebrow {
+  display: block;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #33433e;
+}
+.timeline-list article {
+  display: grid;
+  grid-template-columns: 12px 140px minmax(180px, 1fr) minmax(180px, 0.7fr);
+  gap: 20px;
+  align-items: center;
+  padding: 28px 4px;
+  border-bottom: 1px solid #263631;
+}
+.timeline-list article a {
+  overflow: hidden;
+  color: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.timeline-list article a:first-of-type {
+  font-family: "Iowan Old Style", serif;
+  font-size: 1.7rem;
+}
+.timeline-list article a:hover {
+  color: #f0b95c;
+}
+.timeline-list time {
+  color: #82918c;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+}
+.traveler-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+.editor-page {
+  min-height: calc(100vh - 76px);
+  padding: 52px 0 100px;
+  background: #10201d;
+}
+.detail-page {
+  padding-top: 52px;
+  padding-bottom: 110px;
+}
+.detail-hero,
+.user-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 28px;
+  margin: clamp(55px, 9vw, 120px) 0 26px;
+}
+.detail-hero h1,
+.user-hero h1 {
+  max-width: 100%;
+  margin: 8px 0 18px;
+  font-family: "Iowan Old Style", serif;
+  font-size: clamp(4.5rem, 10vw, 10rem);
+  font-weight: 500;
+  line-height: 0.82;
+  letter-spacing: -0.055em;
+  overflow-wrap: anywhere;
+}
+.user-hero h1 {
+  font-size: clamp(3rem, 7vw, 7rem);
+}
+.byline {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: #aab7b2;
+  text-decoration: none;
+}
+.byline:hover {
+  color: #f0b95c;
+}
+.detail-story {
+  max-width: 820px;
+  margin: 70px 0;
+  font-size: clamp(1.1rem, 1.6vw, 1.32rem);
+}
+.user-swatch {
+  flex: 0 0 auto;
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 12px #ffffff08;
+}
+.user-layout {
+  display: grid;
+  grid-template-columns: minmax(440px, 1.2fr) minmax(300px, 0.8fr);
+  gap: clamp(30px, 8vw, 110px);
+  align-items: center;
+}
+.dates {
+  margin-top: 16px !important;
+  color: #8d9c97;
+  font-size: 0.82rem !important;
+  letter-spacing: 0.06em !important;
+}
+.story {
+  max-width: 780px;
+  margin-top: 30px;
+  color: #d2dbd7;
+  font-size: 1.05rem;
+  line-height: 1.8;
+}
+.story h1,
+.story h2,
+.story h3 {
+  font-family: "Iowan Old Style", serif;
+}
+.inline-photos {
+  width: 100%;
+  margin-top: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+.inline-photos.count-1 {
+  grid-template-columns: 1fr;
+}
+.inline-photos.count-3 {
+  grid-template-columns: 1.4fr 1fr;
+}
+.inline-photos.count-3 img:first-child {
+  grid-row: span 2;
+  height: 568px;
+}
+.inline-photos img {
+  width: 100%;
+  height: 280px;
+  object-fit: cover;
+}
+.photo-gallery {
+  margin-top: 42px;
+}
+.gallery-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  gap: 6px;
+  margin-top: 14px;
+}
+.gallery-strip button {
+  border: 0;
+  padding: 0;
+  background: none;
+  cursor: pointer;
+  overflow: hidden;
+}
+.gallery-strip button:hover img {
+  transform: scale(1.04);
+}
+.gallery-strip img {
+  display: block;
+  width: 100%;
+  height: 92px;
+  object-fit: cover;
+  transition: transform 0.25s ease;
+}
+.gallery-dialog {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 8px;
+}
+.gallery-dialog img {
+  width: 100%;
+  height: 360px;
+  object-fit: cover;
+}
+.MuiDialogTitle-root {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: "Iowan Old Style", serif !important;
+  font-size: 2rem !important;
+}
 @media (max-width: 960px) {
-  .landing { grid-template-columns: 1fr 1fr; column-gap: 24px; padding-inline: 28px; }
-  .landing-copy h1 { font-size: clamp(4rem, 10vw, 6rem); }
-  .login-form { grid-template-columns: 1fr 1fr; }
-  .login-form h2, .login-form .MuiTypography-caption { grid-column: 1 / -1; }
-  .form-intro { grid-template-columns: 1fr 2fr; }
-  .form-intro > p:last-child { grid-column: 2; }
-  .atlas-heading { grid-template-columns: 1fr; }
-  .view-controls { justify-content: space-between; }
-  .atlas-layout { grid-template-columns: minmax(390px, 1.1fr) minmax(260px, .9fr); gap: 24px; }
-  .user-layout { grid-template-columns: minmax(380px, 1.1fr) minmax(260px, .9fr); gap: 24px; }
+  .landing {
+    grid-template-columns: 1fr 1fr;
+    column-gap: 24px;
+    padding-inline: 28px;
+  }
+  .landing-copy h1 {
+    font-size: clamp(4rem, 10vw, 6rem);
+  }
+  .login-form {
+    grid-template-columns: 1fr 1fr;
+  }
+  .login-form h2,
+  .login-form .MuiTypography-caption {
+    grid-column: 1 / -1;
+  }
+  .form-intro {
+    grid-template-columns: 1fr 2fr;
+  }
+  .form-intro > p:last-child {
+    grid-column: 2;
+  }
+  .atlas-heading {
+    grid-template-columns: 1fr;
+  }
+  .view-controls {
+    justify-content: space-between;
+  }
+  .atlas-layout {
+    grid-template-columns: minmax(390px, 1.1fr) minmax(260px, 0.9fr);
+    gap: 24px;
+  }
+  .user-layout {
+    grid-template-columns: minmax(380px, 1.1fr) minmax(260px, 0.9fr);
+    gap: 24px;
+  }
 }
 @media (max-width: 700px) {
-  .header-actions { gap: 6px; }
-  .header-actions .signout-label { display: none; }
-  .header-actions .MuiButton-root[aria-label="Sign out"] { min-width: 40px; padding-inline: 8px; }
-  .header-actions .MuiButton-root[aria-label="Sign out"] .MuiButton-startIcon { margin: 0; }
-  .landing { display: flex; min-height: 100svh; flex-direction: column; padding: 24px 20px 36px; overflow: visible; }
-  .landing-copy { padding: 70px 0 16px; }
-  .landing-copy h1 { font-size: clamp(3.8rem, 19vw, 5.5rem); }
-  .feature-line { display: none !important; }
-  .landing-globe { inset: 74px 0 0; width: 100%; }
-  .world-globe.immersive { max-height: none; }
-  .login-form { display: grid; grid-template-columns: 1fr; width: 100%; }
-  .login-form h2, .login-form .MuiTypography-caption { grid-column: auto; }
-  .app-header { min-height: 68px !important; }
-  .account { display: none; }
-  .form-intro { display: block; }
-  .form-intro h2 { margin: 10px 0 20px; }
-  .atlas { padding-inline: 20px !important; }
-  .atlas-heading { margin-bottom: 40px; }
-  .atlas-heading h1 { font-size: clamp(3.5rem, 17vw, 5rem); }
-  .view-controls { align-items: stretch !important; flex-direction: column !important; gap: 12px !important; }
-  .MuiToggleButtonGroup-root { width: 100%; }
-  .MuiToggleButton-root { flex: 1; }
-  .atlas-layout { min-height: 0; display: flex; flex-direction: column; gap: 42px; }
-  .world-globe { width: calc(100% + 24px); margin-inline: -12px; }
-  .journey-index { width: 100%; }
-  .globe-skeleton { width: 88vw !important; height: 88vw !important; }
-  .timeline-view { display: block; margin-top: 60px; }
-  .timeline-list article { grid-template-columns: 10px 1fr; gap: 8px 14px; }
-  .timeline-list article time { grid-column: 2; }
-  .timeline-list article a { grid-column: 2; }
-  .timeline-intro { position: static; padding-bottom: 20px; border-bottom: 1px solid #33433e; }
-  .timeline-intro h2 { font-size: 3.5rem; }
-  .story-band { margin-top: 90px; }
-  .location-story { padding: 52px 0; }
-  .location-story h3 { font-size: 3.5rem; }
-  .inline-photos img { height: 180px; }
-  .inline-photos.count-3 img:first-child { height: 368px; }
-  .photo-actions { align-items: stretch !important; }
-  .save-button { margin-left: 0 !important; }
-  .editor-page { padding: 32px 20px 70px; }
-  .detail-page { padding-inline: 20px !important; }
-  .detail-hero h1 { font-size: clamp(4rem, 20vw, 6rem); }
-  .user-hero { flex-direction: column-reverse; }
-  .user-layout { display: flex; flex-direction: column; }
-  .user-layout .place-list { width: 100%; }
+  .header-actions {
+    gap: 6px;
+  }
+  .header-actions .signout-label {
+    display: none;
+  }
+  .header-actions .MuiButton-root[aria-label="Sign out"] {
+    min-width: 40px;
+    padding-inline: 8px;
+  }
+  .header-actions .MuiButton-root[aria-label="Sign out"] .MuiButton-startIcon {
+    margin: 0;
+  }
+  .landing {
+    display: flex;
+    min-height: 100svh;
+    flex-direction: column;
+    padding: 24px 20px 36px;
+    overflow: visible;
+  }
+  .landing-copy {
+    padding: 70px 0 16px;
+  }
+  .landing-copy h1 {
+    font-size: clamp(3.8rem, 19vw, 5.5rem);
+  }
+  .feature-line {
+    display: none !important;
+  }
+  .landing-globe {
+    inset: 74px 0 0;
+    width: 100%;
+  }
+  .world-globe.immersive {
+    max-height: none;
+  }
+  .login-form {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+  .login-form h2,
+  .login-form .MuiTypography-caption {
+    grid-column: auto;
+  }
+  .app-header {
+    min-height: 68px !important;
+  }
+  .form-intro {
+    display: block;
+  }
+  .form-intro h2 {
+    margin: 10px 0 20px;
+  }
+  .atlas {
+    padding-inline: 20px !important;
+  }
+  .atlas-heading {
+    margin-bottom: 40px;
+  }
+  .atlas-heading h1 {
+    font-size: clamp(3.5rem, 17vw, 5rem);
+  }
+  .view-controls {
+    align-items: stretch !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+  .MuiToggleButtonGroup-root {
+    width: 100%;
+  }
+  .MuiToggleButton-root {
+    flex: 1;
+  }
+  .atlas-layout {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 42px;
+  }
+  .world-globe {
+    width: calc(100% + 24px);
+    margin-inline: -12px;
+  }
+  .journey-index {
+    width: 100%;
+  }
+  .globe-skeleton {
+    width: 88vw !important;
+    height: 88vw !important;
+  }
+  .timeline-list article {
+    grid-template-columns: 10px 1fr;
+    gap: 8px 14px;
+  }
+  .timeline-list article time {
+    grid-column: 2;
+  }
+  .timeline-list article a {
+    grid-column: 2;
+  }
+  .inline-photos img {
+    height: 180px;
+  }
+  .inline-photos.count-3 img:first-child {
+    height: 368px;
+  }
+  .photo-actions {
+    align-items: stretch !important;
+  }
+  .save-button {
+    margin-left: 0 !important;
+  }
+  .editor-page {
+    padding: 32px 20px 70px;
+  }
+  .detail-page {
+    padding-inline: 20px !important;
+  }
+  .detail-hero h1 {
+    font-size: clamp(4rem, 20vw, 6rem);
+  }
+  .user-hero {
+    flex-direction: column-reverse;
+  }
+  .user-layout {
+    display: flex;
+    flex-direction: column;
+  }
+  .user-layout .place-list {
+    width: 100%;
+  }
 }
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; } }
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

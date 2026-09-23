@@ -1,6 +1,6 @@
 # Travel Globe
 
-Private traveler spaces with place autocomplete, dated locations, Markdown
+Shared traveler atlases with place autocomplete, dated locations, Markdown
 stories, inline photo compositions and galleries, current-location clocks,
 history filtering, a globe, and a timeline. A new email creates a traveler;
 returning travelers use the same email and password.
@@ -53,5 +53,5 @@ uv run pytest
 pnpm test -- --run
 pnpm test:e2e
 pnpm build
-pnpm preview
+pnpm exec tsc --noEmit
 ```

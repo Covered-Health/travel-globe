@@ -1,3 +1,8 @@
+from fastapi.testclient import TestClient
+
+from backend.app import app
+
+
 def test_first_login_creates_user_session(client):
     response = client.post("/api/session", json={"email": "traveler@example.com", "password": "long-enough-password"})
     assert response.status_code == 200
@@ -20,11 +25,9 @@ def test_sign_out_revokes_session_cookie(alice):
 
     assert response.status_code == 204
     assert alice.get("/api/session").status_code == 401
-    assert TestClient(app, headers={"cookie": f"session={old_cookie}"}).get("/api/session").status_code == 401
+    with TestClient(app, headers={"cookie": f"session={old_cookie}"}) as old_session:
+        assert old_session.get("/api/session").status_code == 401
 
 
 def test_anonymous_visitor_cannot_read_locations(client):
     assert client.get("/api/locations").status_code == 401
-from fastapi.testclient import TestClient
-
-from backend.app import app

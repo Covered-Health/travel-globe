@@ -4,8 +4,10 @@ import json
 import os
 import secrets
 import sqlite3
+from contextlib import asynccontextmanager
 from datetime import date
 from pathlib import Path
+from typing import Literal
 from uuid import uuid4
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -19,32 +21,50 @@ def uploads_path():
     return Path(os.getenv("UPLOADS_PATH", "uploads"))
 
 
-def get_db():
+MAX_PHOTO_BYTES = 10 * 1024 * 1024
+
+
+def database_path():
     path = Path(os.getenv("SQLITE_PATH", "data/travel-globe.sqlite3"))
     path.parent.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def initialize_database():
+    with sqlite3.connect(database_path()) as connection:
+        connection.executescript("""
+            CREATE TABLE IF NOT EXISTS users (
+                id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL, session_hash TEXT UNIQUE
+            );
+            CREATE TABLE IF NOT EXISTS locations (
+                id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id),
+                name TEXT NOT NULL, latitude REAL NOT NULL, longitude REAL NOT NULL,
+                timezone TEXT NOT NULL, start_date TEXT NOT NULL, end_date TEXT,
+                story TEXT NOT NULL, photos TEXT NOT NULL, embed_photos INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS locations_user_date ON locations(user_id, start_date DESC);
+        """)
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    initialize_database()
+    yield
+
+
+def get_db():
+    path = database_path()
     connection = sqlite3.connect(path, timeout=30, check_same_thread=False)
     connection.row_factory = sqlite3.Row
     connection.execute("PRAGMA foreign_keys=ON")
-    connection.executescript("""
-        CREATE TABLE IF NOT EXISTS users (
-            id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE,
-            password_hash TEXT NOT NULL, session_hash TEXT UNIQUE
-        );
-        CREATE TABLE IF NOT EXISTS locations (
-            id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id),
-            name TEXT NOT NULL, latitude REAL NOT NULL, longitude REAL NOT NULL,
-            timezone TEXT NOT NULL, start_date TEXT NOT NULL, end_date TEXT,
-            story TEXT NOT NULL, photos TEXT NOT NULL, embed_photos INTEGER NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS locations_user_date ON locations(user_id, start_date DESC);
-    """)
     try:
         yield connection
     finally:
         connection.close()
 
 
-app = FastAPI(title="Travel Globe")
+app = FastAPI(title="Travel Globe", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[os.getenv("WEB_ORIGIN", "http://localhost:5173")],
@@ -55,7 +75,7 @@ app.add_middleware(
 
 @app.get("/healthz")
 def health(db=Depends(get_db)):
-    db.execute("CREATE TEMP TABLE IF NOT EXISTS healthz (value INTEGER)")
+    db.execute("SELECT 1")
     return {"ok": True}
 
 
@@ -95,7 +115,10 @@ async def create_session(credentials: Credentials, response: Response, db=Depend
     if user:
         db.execute("UPDATE users SET session_hash=? WHERE id=?", (session_hash, user["id"]))
     else:
-        db.execute("INSERT INTO users VALUES (?, ?, ?, ?)", (uuid4().hex, email, hash_password(credentials.password), session_hash))
+        db.execute(
+            "INSERT INTO users (id, email, password_hash, session_hash) VALUES (?, ?, ?, ?)",
+            (uuid4().hex, email, hash_password(credentials.password), session_hash),
+        )
     db.commit()
     response.set_cookie("session", token, httponly=True, samesite="lax", max_age=30 * 24 * 60 * 60)
     return {"email": email}
@@ -120,31 +143,19 @@ def delete_session(response: Response, db=Depends(get_db), user=Depends(get_curr
     response.delete_cookie("session", samesite="lax")
 
 
-def iso_date(value):
-    return value if isinstance(value, str) else value.isoformat() if value else None
-
-
-def location_json(document):
+def location_json(document, photos=None):
     return {
         "id": document["id"],
         "name": document["name"],
         "latitude": document["latitude"],
         "longitude": document["longitude"],
         "timezone": document["timezone"],
-        "startDate": iso_date(document["start_date"]),
-        "endDate": iso_date(document["end_date"]),
+        "startDate": document["start_date"],
+        "endDate": document["end_date"],
         "story": document["story"],
-        "photos": json.loads(document["photos"]),
+        "photos": photos if photos is not None else json.loads(document["photos"]),
         "embedPhotos": bool(document["embed_photos"]),
     }
-
-
-def in_scope(document, scope):
-    today = date.today().isoformat()
-    return scope == "all" or (
-        iso_date(document["start_date"]) <= today
-        and (document["end_date"] is None or iso_date(document["end_date"]) >= today)
-    )
 
 
 def shared_location(document, db):
@@ -177,21 +188,24 @@ async def create_location(
 
     pending_photos = []
     for photo in photos:
-        if (isinstance(photo, str) and not photo) or (not isinstance(photo, str) and not photo.filename):
-            continue
         if isinstance(photo, str):
+            if not photo:
+                continue
             raise HTTPException(422, "Photos must be images")
+        if not photo.filename:
+            continue
         if not photo.content_type or not photo.content_type.startswith("image/"):
             raise HTTPException(422, "Photos must be images")
-        content = await photo.read(10 * 1024 * 1024 + 1)
-        if len(content) > 10 * 1024 * 1024:
+        content = await photo.read(MAX_PHOTO_BYTES + 1)
+        if len(content) > MAX_PHOTO_BYTES:
             raise HTTPException(422, "Each photo must be 10 MB or smaller")
         filename = f"{uuid4().hex}{Path(photo.filename or '').suffix.lower()}"
         pending_photos.append((filename, content))
 
     photo_urls = []
-    for filename, content in pending_photos:
+    if pending_photos:
         uploads_path().mkdir(parents=True, exist_ok=True)
+    for filename, content in pending_photos:
         (uploads_path() / filename).write_bytes(content)
         photo_urls.append(f"/uploads/{filename}")
 
@@ -208,35 +222,40 @@ async def create_location(
         "embed_photos": embed_photos,
     }
     document["id"] = uuid4().hex
-    db.execute("INSERT INTO locations VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (
-        document["id"], document["user_id"], name, latitude, longitude, timezone,
-        document["start_date"], document["end_date"], story, json.dumps(photo_urls), int(embed_photos),
-    ))
+    db.execute(
+        """INSERT INTO locations (
+            id, user_id, name, latitude, longitude, timezone,
+            start_date, end_date, story, photos, embed_photos
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (
+            document["id"], document["user_id"], name, latitude, longitude, timezone,
+            document["start_date"], document["end_date"], story, json.dumps(photo_urls), int(embed_photos),
+        ),
+    )
     db.commit()
-    document["photos"] = json.dumps(photo_urls)
-    return location_json(document)
+    return location_json(document, photo_urls)
 
 
 @app.get("/api/locations")
-async def list_locations(scope: str = "current", db=Depends(get_db), user=Depends(get_current_user)):
-    if scope not in {"current", "all"}:
-        raise HTTPException(422, "Scope must be current or all")
-    documents = db.execute("SELECT * FROM locations WHERE user_id=? ORDER BY start_date DESC", (user["id"],)).fetchall()
-    documents = [item for item in documents if in_scope(item, scope)]
+async def list_locations(scope: Literal["current", "all"] = "current", db=Depends(get_db), user=Depends(get_current_user)):
+    query = "SELECT * FROM locations WHERE user_id=?"
+    parameters = [user["id"]]
+    if scope == "current":
+        query += " AND start_date <= ? AND (end_date IS NULL OR end_date >= ?)"
+        parameters += [date.today().isoformat()] * 2
+    documents = db.execute(f"{query} ORDER BY start_date DESC", parameters).fetchall()
     return [location_json(item) for item in documents]
 
 
 @app.get("/api/atlas")
-async def read_atlas(scope: str = "current", db=Depends(get_db), _user=Depends(get_current_user)):
-    if scope not in {"current", "all"}:
-        raise HTTPException(422, "Scope must be current or all")
-    documents = db.execute("SELECT * FROM locations ORDER BY start_date DESC").fetchall()
-    result = []
-    for document in documents:
-        if not in_scope(document, scope):
-            continue
-        result.append(shared_location(document, db))
-    return result
+async def read_atlas(scope: Literal["current", "all"] = "current", db=Depends(get_db), _user=Depends(get_current_user)):
+    query = "SELECT * FROM locations"
+    parameters = []
+    if scope == "current":
+        query += " WHERE start_date <= ? AND (end_date IS NULL OR end_date >= ?)"
+        parameters = [date.today().isoformat()] * 2
+    documents = db.execute(f"{query} ORDER BY start_date DESC", parameters).fetchall()
+    return [shared_location(document, db) for document in documents]
 
 
 @app.get("/api/users/{user_id}")
