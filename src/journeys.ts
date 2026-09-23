@@ -14,6 +14,7 @@ export function overlayScale(baseAltitude: number, altitude: number) {
 }
 
 export function globeRoutePoints(from: Coordinates, to: Coordinates): GlobePoint[] {
+  // Sample a 64-segment great-circle arc, lifted up to 7.5% above the globe at its midpoint.
   const vector = ({ latitude, longitude }: Coordinates) => {
     const lat = (latitude * Math.PI) / 180;
     const lng = (longitude * Math.PI) / 180;

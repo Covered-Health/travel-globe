@@ -21,6 +21,10 @@ def uploads_path():
     return Path(os.getenv("UPLOADS_PATH", "uploads"))
 
 
+def secure_cookies():
+    return os.getenv("SESSION_COOKIE_SECURE", "false").lower() == "true"
+
+
 MAX_PHOTO_BYTES = 10 * 1024 * 1024
 
 
@@ -120,7 +124,14 @@ async def create_session(credentials: Credentials, response: Response, db=Depend
             (uuid4().hex, email, hash_password(credentials.password), session_hash),
         )
     db.commit()
-    response.set_cookie("session", token, httponly=True, samesite="lax", max_age=30 * 24 * 60 * 60)
+    response.set_cookie(
+        "session",
+        token,
+        httponly=True,
+        secure=secure_cookies(),
+        samesite="lax",
+        max_age=30 * 24 * 60 * 60,
+    )
     return {"email": email}
 
 
@@ -140,7 +151,7 @@ async def read_session(user=Depends(get_current_user)):
 def delete_session(response: Response, db=Depends(get_db), user=Depends(get_current_user)):
     db.execute("UPDATE users SET session_hash=NULL WHERE id=?", (user["id"],))
     db.commit()
-    response.delete_cookie("session", samesite="lax")
+    response.delete_cookie("session", secure=secure_cookies(), samesite="lax")
 
 
 def location_json(document, photos=None):

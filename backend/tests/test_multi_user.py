@@ -24,3 +24,7 @@ def test_traveler_details_include_their_locations(alice):
 def test_location_details_identify_the_traveler(alice):
     location_id = add_place(alice, "Lisbon").json()["id"]
     assert alice.get(f"/api/locations/{location_id}").json()["traveler"]["email"] == "alice@example.com"
+
+
+def test_unknown_traveler_returns_not_found(alice):
+    assert alice.get("/api/users/missing").status_code == 404

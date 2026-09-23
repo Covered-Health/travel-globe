@@ -18,6 +18,12 @@ def test_session_cookie_restores_logged_in_user(alice):
     assert alice.get("/api/session").json() == {"email": "alice@example.com"}
 
 
+def test_session_cookie_can_be_limited_to_https(client, monkeypatch):
+    monkeypatch.setenv("SESSION_COOKIE_SECURE", "true")
+    response = client.post("/api/session", json={"email": "secure@example.com", "password": "long-enough-password"})
+    assert "secure" in response.headers["set-cookie"].lower()
+
+
 def test_sign_out_revokes_session_cookie(alice):
     old_cookie = alice.cookies.get("session")
 

@@ -22,5 +22,4 @@ COPY --from=frontend /app/dist ./dist
 COPY backend ./backend
 ENV PATH="/app/.venv/bin:$PATH" SQLITE_PATH=/data/travel-globe.sqlite3 UPLOADS_PATH=/data/uploads DIST_PATH=/app/dist
 EXPOSE 8000
-USER 10001:10001
 CMD ["uvicorn", "backend.app:app", "--host", "0.0.0.0", "--port", "8000"]

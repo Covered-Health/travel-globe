@@ -46,6 +46,10 @@ def test_unknown_scope_is_rejected(alice):
     assert alice.get("/api/locations?scope=nearby").status_code == 422
 
 
+def test_unknown_location_returns_not_found(alice):
+    assert alice.get("/api/locations/missing").status_code == 404
+
+
 def test_empty_browser_file_placeholder_is_treated_as_no_photo(alice):
     response = add_place(alice, "Lisbon", files={"photos": ("", b"", "application/octet-stream")})
     assert response.status_code == 201
