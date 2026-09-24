@@ -37,7 +37,8 @@ With the backend running, create a total of 100 locations across 10 demo users:
 uv run --script scripts/seed.py --points 100 --users 10
 ```
 
-Pass `--random-seed` to reproduce a different generated dataset.
+Trips are sampled from 34,000 cities. Pass `--random-seed` to reproduce a
+different generated dataset.
 
 ## Kubernetes
 
