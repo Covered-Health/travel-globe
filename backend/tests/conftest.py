@@ -14,14 +14,20 @@ def client(tmp_path, monkeypatch):
 
 @pytest.fixture
 def alice(client):
-    assert client.post("/api/session", json={"email": "alice@example.com", "password": "alice-password"}).status_code == 200
+    assert client.post("/api/session", json={
+        "email": "alice@example.com", "password": "alice-password",
+        "first_name": "Alice", "last_name": "Atlas",
+    }).status_code == 200
     return client
 
 
 @pytest.fixture
 def bob(client):
     with TestClient(app) as test_client:
-        assert test_client.post("/api/session", json={"email": "bob@example.com", "password": "bobby-password"}).status_code == 200
+        assert test_client.post("/api/session", json={
+            "email": "bob@example.com", "password": "bobby-password",
+            "first_name": "Bob", "last_name": "Barker",
+        }).status_code == 200
         yield test_client
 
 

@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 
 test('signed-in header keeps sign out accessible on a narrow screen', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 740 })
-  await page.route('**/api/session', route => route.fulfill({ json: { email: 'traveler@example.com' } }))
+  await page.route('**/api/session', route => route.fulfill({ json: { email: 'traveler@example.com', name: 'Tara Veler' } }))
   await page.route('**/api/atlas**', route => route.fulfill({ json: [] }))
   await page.goto('/')
 
@@ -24,14 +24,14 @@ test('landing globe uses the full canvas below the heading bar', async ({ page }
 
 test('traveler adds a location and returns to the routed atlas', async ({ page }) => {
   let location: object | undefined
-  await page.route('**/api/session', route => route.fulfill({ json: { email: 'traveler@example.com' } }))
+  await page.route('**/api/session', route => route.fulfill({ json: { email: 'traveler@example.com', name: 'Tara Veler' } }))
   await page.route('https://geocoding-api.open-meteo.com/**', route => route.fulfill({ json: { results: [{
     id: 1, name: 'Lisbon', country: 'Portugal', latitude: 38.7, longitude: -9.1, timezone: 'Europe/Lisbon',
   }] } }))
   await page.route('**/api/atlas**', route => route.fulfill({ json: location ? [location] : [] }))
   await page.route('**/api/locations**', async route => {
     if (route.request().method() === 'POST') {
-      location = { id: '1', name: 'Lisbon', latitude: 38.7, longitude: -9.1, timezone: 'Europe/Lisbon', startDate: '2020-09-03', endDate: '2020-09-05', story: 'Pastéis by the river', photos: [], embedPhotos: false, traveler: { id: 'user-1', email: 'traveler@example.com' } }
+      location = { id: '1', name: 'Lisbon', latitude: 38.7, longitude: -9.1, timezone: 'Europe/Lisbon', startDate: '2020-09-03', endDate: '2020-09-05', story: 'Pastéis by the river', photos: [], embedPhotos: false, traveler: { id: 'user-1', name: 'Tara Veler' } }
       await route.fulfill({ status: 201, json: location })
     } else await route.fulfill({ json: location })
   })

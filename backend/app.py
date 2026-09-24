@@ -39,7 +39,8 @@ def initialize_database():
         connection.executescript("""
             CREATE TABLE IF NOT EXISTS users (
                 id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE,
-                password_hash TEXT NOT NULL, session_hash TEXT UNIQUE
+                password_hash TEXT NOT NULL, session_hash TEXT UNIQUE,
+                first_name TEXT NOT NULL, last_name TEXT NOT NULL
             );
             CREATE TABLE IF NOT EXISTS locations (
                 id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id),
@@ -49,6 +50,10 @@ def initialize_database():
             );
             CREATE INDEX IF NOT EXISTS locations_user_date ON locations(user_id, start_date DESC);
         """)
+        columns = {column[1] for column in connection.execute("PRAGMA table_info(users)")}
+        for column in ("first_name", "last_name"):
+            if column not in columns:
+                connection.execute(f"ALTER TABLE users ADD COLUMN {column} TEXT NOT NULL DEFAULT ''")
 
 
 @asynccontextmanager
@@ -94,6 +99,12 @@ def read_photo(filename: str):
 class Credentials(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=200)
+    first_name: str | None = Field(None, max_length=50)
+    last_name: str | None = Field(None, max_length=50)
+
+
+def user_name(user):
+    return f"{user['first_name']} {user['last_name']}".strip() or user["email"]
 
 
 def hash_password(password: str) -> str:
@@ -111,18 +122,31 @@ def password_matches(password: str, encoded: str) -> bool:
 @app.post("/api/session")
 async def create_session(credentials: Credentials, response: Response, db=Depends(get_db)):
     email = str(credentials.email).lower()
+    first_name = (credentials.first_name or "").strip()
+    last_name = (credentials.last_name or "").strip()
     user = db.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
     if user and not password_matches(credentials.password, user["password_hash"]):
         raise HTTPException(401, "Incorrect password")
+    if not user and (not first_name or not last_name):
+        raise HTTPException(422, "First and last name are required for a new account")
     token = secrets.token_urlsafe(32)
     session_hash = hashlib.sha256(token.encode()).hexdigest()
     if user:
-        db.execute("UPDATE users SET session_hash=? WHERE id=?", (session_hash, user["id"]))
+        if first_name and last_name and not user["first_name"] and not user["last_name"]:
+            db.execute(
+                "UPDATE users SET session_hash=?, first_name=?, last_name=? WHERE id=?",
+                (session_hash, first_name, last_name, user["id"]),
+            )
+            name = f"{first_name} {last_name}"
+        else:
+            db.execute("UPDATE users SET session_hash=? WHERE id=?", (session_hash, user["id"]))
+            name = user_name(user)
     else:
         db.execute(
-            "INSERT INTO users (id, email, password_hash, session_hash) VALUES (?, ?, ?, ?)",
-            (uuid4().hex, email, hash_password(credentials.password), session_hash),
+            "INSERT INTO users (id, email, password_hash, session_hash, first_name, last_name) VALUES (?, ?, ?, ?, ?, ?)",
+            (uuid4().hex, email, hash_password(credentials.password), session_hash, first_name, last_name),
         )
+        name = f"{first_name} {last_name}"
     db.commit()
     response.set_cookie(
         "session",
@@ -132,7 +156,7 @@ async def create_session(credentials: Credentials, response: Response, db=Depend
         samesite="lax",
         max_age=30 * 24 * 60 * 60,
     )
-    return {"email": email}
+    return {"email": email, "name": name}
 
 
 async def get_current_user(request: Request, db=Depends(get_db)):
@@ -144,7 +168,7 @@ async def get_current_user(request: Request, db=Depends(get_db)):
 
 @app.get("/api/session")
 async def read_session(user=Depends(get_current_user)):
-    return {"email": user["email"]}
+    return {"email": user["email"], "name": user_name(user)}
 
 
 @app.delete("/api/session", status_code=204)
@@ -170,9 +194,9 @@ def location_json(document, photos=None):
 
 
 def shared_location(document, db):
-    owner = db.execute("SELECT id, email FROM users WHERE id=?", (document["user_id"],)).fetchone()
+    owner = db.execute("SELECT id, email, first_name, last_name FROM users WHERE id=?", (document["user_id"],)).fetchone()
     item = location_json(document)
-    item["traveler"] = {"id": owner["id"], "email": owner["email"]}
+    item["traveler"] = {"id": owner["id"], "name": user_name(owner)}
     return item
 
 
@@ -271,11 +295,11 @@ async def read_atlas(scope: Literal["current", "all"] = "current", db=Depends(ge
 
 @app.get("/api/users/{user_id}")
 async def read_user(user_id: str, db=Depends(get_db), _user=Depends(get_current_user)):
-    owner = db.execute("SELECT id, email FROM users WHERE id=?", (user_id,)).fetchone()
+    owner = db.execute("SELECT id, email, first_name, last_name FROM users WHERE id=?", (user_id,)).fetchone()
     if not owner:
         raise HTTPException(404, "Traveler not found")
     documents = db.execute("SELECT * FROM locations WHERE user_id=? ORDER BY start_date DESC", (user_id,)).fetchall()
-    return {"id": owner["id"], "email": owner["email"], "locations": [location_json(item) for item in documents]}
+    return {"id": owner["id"], "name": user_name(owner), "locations": [location_json(item) for item in documents]}
 
 
 @app.get("/api/locations/{location_id}")

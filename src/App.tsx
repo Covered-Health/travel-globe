@@ -62,7 +62,7 @@ import { globeRoutePoints, journeyLegs, overlayScale } from "./journeys";
 import { placeName } from "./places";
 import "./style.css";
 
-type Traveler = { id: string; email: string };
+type Traveler = { id: string; name: string };
 type Location = {
   id: string;
   name: string;
@@ -76,7 +76,7 @@ type Location = {
   embedPhotos: boolean;
   traveler: Traveler;
 };
-type User = { email: string };
+type User = { email: string; name: string };
 type Place = {
   id: number;
   name: string;
@@ -108,7 +108,7 @@ const exampleLocations: Location[] = [
     story: "",
     photos: [],
     embedPhotos: false,
-    traveler: { id: "example-a", email: "Maya" },
+    traveler: { id: "example-a", name: "Maya Chen" },
   },
   {
     id: "example-kyoto",
@@ -121,7 +121,7 @@ const exampleLocations: Location[] = [
     story: "",
     photos: [],
     embedPhotos: false,
-    traveler: { id: "example-a", email: "Maya" },
+    traveler: { id: "example-a", name: "Maya Chen" },
   },
   {
     id: "example-reykjavik",
@@ -134,7 +134,7 @@ const exampleLocations: Location[] = [
     story: "",
     photos: [],
     embedPhotos: false,
-    traveler: { id: "example-b", email: "Noah" },
+    traveler: { id: "example-b", name: "Noah Okafor" },
   },
   {
     id: "example-cape-town",
@@ -147,7 +147,7 @@ const exampleLocations: Location[] = [
     story: "",
     photos: [],
     embedPhotos: false,
-    traveler: { id: "example-b", email: "Noah" },
+    traveler: { id: "example-b", name: "Noah Okafor" },
   },
 ];
 
@@ -462,7 +462,12 @@ function Landing({ onLogin }: { onLogin: (user: User) => void }) {
       const response = await fetch("/api/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: data.get("email"), password: data.get("password") }),
+        body: JSON.stringify({
+          email: data.get("email"),
+          password: data.get("password"),
+          first_name: data.get("first_name"),
+          last_name: data.get("last_name"),
+        }),
       });
       if (!response.ok) throw new Error((await response.json()).detail ?? "Could not continue");
       onLogin(await response.json());
@@ -505,6 +510,20 @@ function Landing({ onLogin }: { onLogin: (user: User) => void }) {
       <Box component="form" onSubmit={login} className="login-form">
         <Typography className="eyebrow">Your travel atlas</Typography>
         <Typography component="h2">Step inside</Typography>
+        <TextField
+          name="first_name"
+          label="First name"
+          autoComplete="given-name"
+          required
+          fullWidth
+        />
+        <TextField
+          name="last_name"
+          label="Last name"
+          autoComplete="family-name"
+          required
+          fullWidth
+        />
         <TextField
           name="email"
           type="email"
@@ -656,11 +675,11 @@ function AtlasPage() {
                     {travelers.map((traveler) => (
                       <Link
                         key={traveler.id}
-                        aria-label={`${traveler.email} traveler`}
+                        aria-label={`${traveler.name} traveler`}
                         to={`/users/${traveler.id}`}
                       >
                         <i style={{ background: travelerColor(traveler.id) }} />
-                        <strong>{traveler.email}</strong>
+                        <strong>{traveler.name}</strong>
                         <span>
                           {
                             locations.filter((location) => location.traveler.id === traveler.id)
@@ -704,10 +723,10 @@ function AtlasPage() {
                     {location.name}
                   </Link>
                   <Link
-                    aria-label={`${location.traveler.email} traveler`}
+                    aria-label={`${location.traveler.name} traveler`}
                     to={`/users/${location.traveler.id}`}
                   >
-                    {location.traveler.email}
+                    {location.traveler.name}
                   </Link>
                 </article>
               ))
@@ -919,7 +938,7 @@ function LocationPage() {
           </header>
           <Link className="byline" to={`/users/${location.traveler.id}`}>
             <i style={{ background: travelerColor(location.traveler.id) }} />
-            Journey by {location.traveler.email}
+            Journey by {location.traveler.name}
           </Link>
           {location.story && (
             <Box className="story detail-story">
@@ -951,7 +970,7 @@ function UserPage() {
   const { data: traveler, error } = useApi<TravelerDetails>(`/api/users/${userId}`);
   const locations = traveler?.locations.map((location) => ({
     ...location,
-    traveler: { id: traveler.id, email: traveler.email },
+    traveler: { id: traveler.id, name: traveler.name },
   }));
   return (
     <main className="app-shell">
@@ -964,7 +983,7 @@ function UserPage() {
           <header className="user-hero">
             <Box>
               <Typography className="eyebrow">Traveler archive</Typography>
-              <Typography component="h1">{traveler.email}</Typography>
+              <Typography component="h1">{traveler.name}</Typography>
               <Typography>
                 {locations.length} {locations.length === 1 ? "place" : "places"} remembered
               </Typography>

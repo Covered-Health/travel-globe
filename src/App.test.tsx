@@ -20,7 +20,7 @@ const lisbon = {
   story: "Pastéis by the river",
   photos: [] as string[],
   embedPhotos: false,
-  traveler: { id: "user-1", email: "traveler@example.com" },
+  traveler: { id: "user-1", name: "Tara Veler" },
 };
 
 afterEach(() => {
@@ -33,7 +33,9 @@ function sessionAnd(response: object) {
     .spyOn(globalThis, "fetch")
     .mockImplementation(async (input) =>
       Response.json(
-        String(input).endsWith("/api/session") ? { email: "traveler@example.com" } : response,
+        String(input).endsWith("/api/session")
+          ? { email: "traveler@example.com", name: "Tara Veler" }
+          : response,
       ),
     );
 }
@@ -68,6 +70,8 @@ test("signed-out landing globe presents example journeys", async () => {
   );
   expect(await screen.findByText("A glimpse of journeys around us")).toBeVisible();
   expect(screen.getByRole("button", { name: "Continue" })).toBeVisible();
+  expect(screen.getByRole("textbox", { name: "First name" })).toBeVisible();
+  expect(screen.getByRole("textbox", { name: "Last name" })).toBeVisible();
   expect(screen.getByText(/MapTiler key to show geographic labels|© MapTiler/)).toBeVisible();
 });
 
@@ -79,7 +83,7 @@ test("atlas shows every traveler without exposing full field notes", async () =>
     </MemoryRouter>,
   );
   expect(await screen.findByRole("link", { name: "Lisbon location" })).toBeVisible();
-  expect(screen.getByRole("link", { name: "traveler@example.com traveler" })).toBeVisible();
+  expect(screen.getByRole("link", { name: "Tara Veler traveler" })).toBeVisible();
   expect(screen.queryByText("Pastéis by the river")).not.toBeInTheDocument();
 });
 
@@ -100,7 +104,7 @@ test("changing atlas scope clears the old error and cancels its request", async 
   const atlasSignals: AbortSignal[] = [];
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
     const url = String(input);
-    if (url.endsWith("/api/session")) return Response.json({ email: "traveler@example.com" });
+    if (url.endsWith("/api/session")) return Response.json({ email: "traveler@example.com", name: "Tara Veler" });
     atlasSignals.push(init?.signal as AbortSignal);
     if (url.endsWith("scope=all")) {
       return Response.json({ detail: "Could not load atlas" }, { status: 500 });
@@ -155,13 +159,13 @@ test("location detail contains story and photo gallery", async () => {
 });
 
 test("traveler detail links to each of their places", async () => {
-  sessionAnd({ id: "user-1", email: "traveler@example.com", locations: [lisbon] });
+  sessionAnd({ id: "user-1", name: "Tara Veler", locations: [lisbon] });
   render(
     <MemoryRouter initialEntries={["/users/user-1"]}>
       <App />
     </MemoryRouter>,
   );
-  expect(await screen.findByRole("heading", { name: "traveler@example.com" })).toBeVisible();
+  expect(await screen.findByRole("heading", { name: "Tara Veler" })).toBeVisible();
   expect(screen.getByRole("link", { name: "Lisbon location" })).toHaveAttribute(
     "href",
     "/locations/location-1",
@@ -174,7 +178,7 @@ test("sign out returns to the landing page without reloading", async () => {
     .mockImplementation(async (_input, init) =>
       init?.method === "DELETE"
         ? new Response(null, { status: 204 })
-        : Response.json({ email: "traveler@example.com" }),
+        : Response.json({ email: "traveler@example.com", name: "Tara Veler" }),
     );
   const user = userEvent.setup();
   render(
@@ -195,7 +199,7 @@ test("failed sign out keeps the traveler signed in and offers retry", async () =
   vi.spyOn(globalThis, "fetch").mockImplementation(async (_input, init) =>
     init?.method === "DELETE"
       ? new Response(null, { status: 500 })
-      : Response.json({ email: "traveler@example.com" }),
+      : Response.json({ email: "traveler@example.com", name: "Tara Veler" }),
   );
   const user = userEvent.setup();
   render(

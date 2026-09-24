@@ -10,20 +10,20 @@ def test_shared_atlas_identifies_every_locations_traveler(alice, bob):
     add_place(alice, "Lisbon")
     add_place(bob, "Oslo")
     atlas = alice.get("/api/atlas?scope=all").json()
-    assert {item["traveler"]["email"] for item in atlas} == {"alice@example.com", "bob@example.com"}
+    assert {item["traveler"]["name"] for item in atlas} == {"Alice Atlas", "Bob Barker"}
 
 
 def test_traveler_details_include_their_locations(alice):
     add_place(alice, "Lisbon")
     user_id = alice.get("/api/atlas?scope=all").json()[0]["traveler"]["id"]
     response = alice.get(f"/api/users/{user_id}")
-    assert response.json()["email"] == "alice@example.com"
+    assert response.json()["name"] == "Alice Atlas"
     assert [item["name"] for item in response.json()["locations"]] == ["Lisbon"]
 
 
 def test_location_details_identify_the_traveler(alice):
     location_id = add_place(alice, "Lisbon").json()["id"]
-    assert alice.get(f"/api/locations/{location_id}").json()["traveler"]["email"] == "alice@example.com"
+    assert alice.get(f"/api/locations/{location_id}").json()["traveler"]["name"] == "Alice Atlas"
 
 
 def test_unknown_traveler_returns_not_found(alice):

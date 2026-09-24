@@ -2,10 +2,11 @@
 
 Shared traveler atlases with place autocomplete, dated locations, Markdown
 stories, inline photo compositions and galleries, current-location clocks,
-history filtering, a globe, and a timeline. A new email creates a traveler;
-returning travelers use the same email and password. Signed-in travelers can
-see one another's email addresses and shared journeys. Each account has one
-active session, so signing in again replaces the previous session.
+history filtering, a globe, and a timeline. A new email and traveler name
+create an account; returning travelers use the same email and password.
+Signed-in travelers can see one another's names and shared journeys. Each
+account has one active session, so signing in again replaces the previous
+session.
 
 ## Run
 
@@ -35,6 +36,8 @@ With the backend running, create a total of 100 locations across 10 demo users:
 ```sh
 uv run --script scripts/seed.py --points 100 --users 10
 ```
+
+Pass `--random-seed` to reproduce a different generated dataset.
 
 ## Kubernetes
 
